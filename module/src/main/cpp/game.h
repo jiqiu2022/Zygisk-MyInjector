@@ -5,6 +5,6 @@
 #ifndef ZYGISK_IL2CPPDUMPER_GAME_H
 #define ZYGISK_IL2CPPDUMPER_GAME_H
 
-#define AimPackageName "com.example.testdlopen"
+#define AimPackageName "com.example.myapplication"
 
 #endif //ZYGISK_IL2CPPDUMPER_GAME_H

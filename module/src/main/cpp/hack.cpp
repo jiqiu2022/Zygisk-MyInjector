@@ -19,7 +19,7 @@
 //#include <asm-generic/fcntl.h>
 #include <fcntl.h>
 
-void hack_start(const char *game_data_dir,JavaVM *vm) {
+void hack_start(const char *game_data_dir) {
     bool load = false;
     LOGI("hack_start %s", game_data_dir);
     // 构建新文件路径
@@ -60,31 +60,95 @@ void hack_start(const char *game_data_dir,JavaVM *vm) {
     } else {
         LOGI("Successfully changed permissions to 755 on %s", new_so_path);
     }
-    void * handle;
-    // 使用 xdl_open 打开新复制的 so 文件
-    for (int i = 0; i < 10; i++) {
-//        void *handle = xdl_open(new_so_path, 0);
-        handle = dlopen(new_so_path, RTLD_NOW | RTLD_LOCAL);
-        if (handle) {
-            LOGI("Successfully loaded %s", new_so_path);
-            load = true;
-            break;
+    JavaVM* vm;
+    auto libart = dlopen("libart.so", RTLD_NOW);
+    auto JNI_GetCreatedJavaVMs = (jint (*)(JavaVM **, jsize, jsize *)) dlsym(libart,
+                                                                             "JNI_GetCreatedJavaVMs");
+    LOGI("JNI_GetCreatedJavaVMs %p", JNI_GetCreatedJavaVMs);
+    JavaVM *vms_buf[1];
+    jsize num_vms;
+    jint status = JNI_GetCreatedJavaVMs(vms_buf, 1, &num_vms);
+    if (status == JNI_OK && num_vms > 0) {
+        vm = vms_buf[0];
+    } else {
+        LOGE("GetCreatedJavaVMs error");
+        return ;
+    }
+
+    JNIEnv *env = nullptr;
+    bool needDetach = false;
+    jint getEnvStat = vm->GetEnv((void **)&env, JNI_VERSION_1_6);
+    if (getEnvStat == JNI_EDETACHED) {
+        LOGI("Thread not attached, attaching...");
+        if (vm->AttachCurrentThread(&env, NULL) != 0) {
+            LOGE("Failed to attach current thread");
+            return;
+        }
+        needDetach = true;
+    } else if (getEnvStat == JNI_OK) {
+        LOGI("Thread already attached");
+    } else if (getEnvStat == JNI_EVERSION) {
+        LOGE("JNI version not supported");
+        return;
+    } else {
+        LOGE("Failed to get the environment using GetEnv, error code: %d", getEnvStat);
+        return;
+    }
+
+    if (env != nullptr) {
+        jclass systemClass = env->FindClass("java/lang/System");
+        if (systemClass == NULL) {
+            LOGE("Failed to find java/lang/System class");
         } else {
-            LOGE("Failed to load %s: %s", new_so_path, dlerror());
-            sleep(1);
+            jmethodID loadMethod = env->GetStaticMethodID(systemClass, "load", "(Ljava/lang/String;)V");
+            if (loadMethod == NULL) {
+                LOGE("Failed to find System.load method");
+            } else {
+                jstring jLibPath = env->NewStringUTF(new_so_path);
+                env->CallStaticVoidMethod(systemClass, loadMethod, jLibPath);
+                if (env->ExceptionCheck()) {
+                    env->ExceptionDescribe();
+                    LOGE("Exception occurred while calling System.load %s",new_so_path);
+                    env->ExceptionClear();
+                } else {
+                    LOGI("Successfully loaded %s using System.load", new_so_path);
+                    load = true;
+                }
+                env->DeleteLocalRef(jLibPath);
+            }
+            env->DeleteLocalRef(systemClass);
+        }
+    }
+
+    if (!load) {
+        LOGI("Attempting to load %s using dlopen", new_so_path);
+        void * handle;
+        for (int i = 0; i < 10; i++) {
+            handle = dlopen(new_so_path, RTLD_NOW | RTLD_LOCAL);
+            if (handle) {
+                LOGI("Successfully loaded %s using dlopen", new_so_path);
+                load = true;
+                void (*JNI_OnLoad)(JavaVM *, void *);
+                *(void **) (&JNI_OnLoad) = dlsym(handle, "JNI_OnLoad");
+                if (JNI_OnLoad) {
+                    LOGI("JNI_OnLoad symbol found, calling JNI_OnLoad.");
+                    JNI_OnLoad(vm, NULL);
+                } else {
+                    LOGE("JNI_OnLoad symbol not found in %s", new_so_path);
+                }
+                break;
+            } else {
+                LOGE("Failed to load %s: %s", new_so_path, dlerror());
+                sleep(1);
+            }
         }
     }
     if (!load) {
-        LOGI("test.so not found in thread %d", gettid());
+        LOGI("Failed to load test.so in thread %d", gettid());
+        return;
     }
-    void (*JNI_OnLoad)(JavaVM *, void *);
-    *(void **) (&JNI_OnLoad) = dlsym(handle, "JNI_OnLoad");
-    if (JNI_OnLoad) {
-        LOGI("JNI_OnLoad symbol found, calling JNI_OnLoad.");
-        JNI_OnLoad(vm, NULL);
-    } else {
-        LOGE("JNI_OnLoad symbol not found in %s", new_so_path);
-    }
+
+
 
 }
 
@@ -246,7 +310,7 @@ void hack_prepare(const char *_data_dir, void *data, size_t length) {
 #if defined(__i386__) || defined(__x86_64__)
     if (!NativeBridgeLoad(_data_dir, api_level, data, length)) {
 #endif
-        hack_start(_data_dir, nullptr);
+        hack_start(_data_dir);
 #if defined(__i386__) || defined(__x86_64__)
     }
 #endif
@@ -256,7 +320,7 @@ void hack_prepare(const char *_data_dir, void *data, size_t length) {
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
     auto game_data_dir = (const char *) reserved;
-    std::thread hack_thread(hack_start, game_data_dir,vm);
+    std::thread hack_thread(hack_start, game_data_dir);
     hack_thread.detach();
     return JNI_VERSION_1_6;
 }

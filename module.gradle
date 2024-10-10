@@ -4,6 +4,6 @@ ext {
     moduleName = "myinjector"
     moduleAuthor = "jiqiu2021"
     moduleDescription = "注入任意SO到指定APP内"
-    moduleVersion = "v0.01"
+    moduleVersion = "v0.02"
     moduleVersionCode = 1
 }
