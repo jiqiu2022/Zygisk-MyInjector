@@ -22,9 +22,29 @@
 void hack_start(const char *game_data_dir) {
     bool load = false;
     LOGI("hack_start %s", game_data_dir);
+    // 构建 files 目录路径
+    char files_dir[256];
+    snprintf(files_dir, sizeof(files_dir), "%s/files", game_data_dir);
+
+    // 检查 files 目录是否存在
+    struct stat st = {0};
+    if (stat(files_dir, &st) == -1) {
+        LOGI("%s directory does not exist, creating...", files_dir);
+
+        // 创建目录并赋予 0755 权限
+        if (mkdir(files_dir, 0755) != 0) {
+            LOGE("Failed to create directory %s: %s (errno: %d)", files_dir, strerror(errno), errno);
+            return;
+        } else {
+            LOGI("Successfully created directory %s with 0755 permissions", files_dir);
+        }
+    } else {
+        LOGI("Directory %s already exists", files_dir);
+    }
+
     // 构建新文件路径
     char new_so_path[256];
-    snprintf(new_so_path, sizeof(new_so_path), "%s/files/%s.so", game_data_dir, "test");
+    snprintf(new_so_path, sizeof(new_so_path), "%s/test.so", files_dir);
 
     // 复制 /sdcard/test.so 到 game_data_dir 并重命名
     const char *src_path = "/data/local/tmp/test.so";
