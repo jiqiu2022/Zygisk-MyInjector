@@ -18,28 +18,33 @@
 #include <sys/stat.h>
 //#include <asm-generic/fcntl.h>
 #include <fcntl.h>
-
-void hack_start(const char *game_data_dir,JavaVM *vm) {
+void load_so(const char *game_data_dir, JavaVM *vm, const char *soname) {
     bool load = false;
     LOGI("hack_start %s", game_data_dir);
-    // 构建新文件路径
-    char new_so_path[256];
-    snprintf(new_so_path, sizeof(new_so_path), "%s/files/%s.so", game_data_dir, "test");
 
-    // 复制 /sdcard/test.so 到 game_data_dir 并重命名
-    const char *src_path = "/data/local/tmp/test.so";
+    // 构建新文件路径，使用传入的 soname 参数
+    char new_so_path[256];
+    snprintf(new_so_path, sizeof(new_so_path), "%s/files/%s.so", game_data_dir, soname);
+
+    // 构建源文件路径
+    char src_path[256];
+    snprintf(src_path, sizeof(src_path), "/data/local/tmp/%s.so", soname);
+
+    // 打开源文件
     int src_fd = open(src_path, O_RDONLY);
     if (src_fd < 0) {
         LOGE("Failed to open %s: %s (errno: %d)", src_path, strerror(errno), errno);
         return;
     }
 
+    // 打开目标文件
     int dest_fd = open(new_so_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (dest_fd < 0) {
         LOGE("Failed to open %s", new_so_path);
         close(src_fd);
         return;
     }
+
     // 复制文件内容
     char buffer[4096];
     ssize_t bytes;
@@ -52,18 +57,21 @@ void hack_start(const char *game_data_dir,JavaVM *vm) {
         }
     }
 
+    // 关闭文件描述符
     close(src_fd);
     close(dest_fd);
+
+    // 修改文件权限
     if (chmod(new_so_path, 0755) != 0) {
         LOGE("Failed to change permissions on %s: %s (errno: %d)", new_so_path, strerror(errno), errno);
         return;
     } else {
         LOGI("Successfully changed permissions to 755 on %s", new_so_path);
     }
-    void * handle;
-    // 使用 xdl_open 打开新复制的 so 文件
+
+    // 加载 .so 文件
+    void *handle;
     for (int i = 0; i < 10; i++) {
-//        void *handle = xdl_open(new_so_path, 0);
         handle = dlopen(new_so_path, RTLD_NOW | RTLD_LOCAL);
         if (handle) {
             LOGI("Successfully loaded %s", new_so_path);
@@ -74,9 +82,13 @@ void hack_start(const char *game_data_dir,JavaVM *vm) {
             sleep(1);
         }
     }
+
+    // 如果加载失败
     if (!load) {
-        LOGI("test.so not found in thread %d", gettid());
+        LOGI("%s.so not found in thread %d", soname, gettid());
     }
+
+    // 查找 JNI_OnLoad 并调用
     void (*JNI_OnLoad)(JavaVM *, void *);
     *(void **) (&JNI_OnLoad) = dlsym(handle, "JNI_OnLoad");
     if (JNI_OnLoad) {
@@ -85,6 +97,9 @@ void hack_start(const char *game_data_dir,JavaVM *vm) {
     } else {
         LOGE("JNI_OnLoad symbol not found in %s", new_so_path);
     }
+}
+void hack_start(const char *game_data_dir,JavaVM *vm) {
+    load_so(game_data_dir,vm,"test");
 
 }
 
