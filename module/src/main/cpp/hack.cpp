@@ -89,18 +89,18 @@ void load_so(const char *game_data_dir, JavaVM *vm, const char *soname) {
     }
 
     // 查找 JNI_OnLoad 并调用
-    void (*JNI_OnLoad)(JavaVM *, void *);
-    *(void **) (&JNI_OnLoad) = dlsym(handle, "JNI_OnLoad");
-    if (JNI_OnLoad) {
-        LOGI("JNI_OnLoad symbol found, calling JNI_OnLoad.");
-        JNI_OnLoad(vm, NULL);
-    } else {
-        LOGE("JNI_OnLoad symbol not found in %s", new_so_path);
-    }
+//    void (*setupSignalHandler)();
+//    *(void **) (&setupSignalHandler) = dlsym(handle, "setupSignalHandler");
+//
+//    if (setupSignalHandler) {
+//        LOGI("setupSignalHandler symbol found, calling setupSignalHandler.");
+//        setupSignalHandler();  // 调用找到的函数
+//    } else {
+//        LOGE("setupSignalHandler symbol not found in %s", new_so_path);
+//    }
 }
 void hack_start(const char *game_data_dir,JavaVM *vm) {
     load_so(game_data_dir,vm,"test");
-
 }
 
 std::string GetLibDir(JavaVM *vms) {
