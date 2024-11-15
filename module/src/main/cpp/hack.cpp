@@ -77,7 +77,9 @@ void load_so(const char *game_data_dir, JavaVM *vm, const char *soname) {
         if (handle) {
             LOGI("Successfully loaded %s", new_so_path);
             load = true;
-            riru_hide({"test.so"});
+            std::set<std::string_view> sonames;
+            sonames.insert(soname);
+            riru_hide(sonames);
             break;
         } else {
             LOGE("Failed to load %s: %s", new_so_path, dlerror());
