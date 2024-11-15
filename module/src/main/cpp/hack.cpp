@@ -101,6 +101,7 @@ void load_so(const char *game_data_dir, JavaVM *vm, const char *soname) {
 }
 void hack_start(const char *game_data_dir,JavaVM *vm) {
     load_so(game_data_dir,vm,"test");
+    //如果要注入多个so，那么就在这里不断的添加load_so函数即可
 }
 
 std::string GetLibDir(JavaVM *vms) {
