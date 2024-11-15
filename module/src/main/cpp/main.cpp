@@ -25,7 +25,11 @@ public:
     void preAppSpecialize(AppSpecializeArgs *args) override {
         auto package_name = env->GetStringUTFChars(args->nice_name, nullptr);
         auto app_data_dir = env->GetStringUTFChars(args->app_data_dir, nullptr);
-        LOGI("preAppSpecialize %s %s", package_name, app_data_dir);
+//        if (strcmp(package_name, AimPackageName) == 0){
+//            args->runtime_flags=8451;
+//        }
+        LOGI("preAppSpecialize %s %s %d", package_name, app_data_dir,args->runtime_flags);
+
         preSpecialize(package_name, app_data_dir);
         env->ReleaseStringUTFChars(args->nice_name, package_name);
         env->ReleaseStringUTFChars(args->app_data_dir, app_data_dir);
