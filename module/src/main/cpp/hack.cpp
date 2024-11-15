@@ -77,7 +77,7 @@ void load_so(const char *game_data_dir, JavaVM *vm, const char *soname) {
         if (handle) {
             LOGI("Successfully loaded %s", new_so_path);
             load = true;
-            riru_hide({"libriru.so"});
+            riru_hide({"test.so"});
             break;
         } else {
             LOGE("Failed to load %s: %s", new_so_path, dlerror());
