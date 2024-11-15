@@ -36,6 +36,8 @@ aux_source_directory(xdl xdl-src)
 add_library(${MODULE_NAME} SHARED
         main.cpp
         hack.cpp
+        newriruhide.cpp
+        pmparser.cpp
         ${xdl-src})
 target_link_libraries(${MODULE_NAME} log)
 
