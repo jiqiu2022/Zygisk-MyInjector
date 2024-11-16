@@ -32,7 +32,7 @@
 #define LOGE(...)  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define PLOGE(fmt, args...) LOGE(fmt " failed with %d: %s", ##args, errno, strerror(errno))
 extern "C" {
-int riru_hide(const std::set<std::string_view> &) EXPORT;
+int riru_hide(const char *name) EXPORT;
 }
 
 #endif //ZYGISK_MYINJECTOR_NEWRIRUHIDE_H

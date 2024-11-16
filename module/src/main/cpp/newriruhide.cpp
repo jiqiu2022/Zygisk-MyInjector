@@ -11,7 +11,7 @@
 
 
 extern "C" {
-int riru_hide(const std::set<std::string_view> &) ;
+int riru_hide(const char *name) ;
 }
 
 #ifdef __LP64__
@@ -80,7 +80,7 @@ static int do_hide(hide_struct *data) {
     return 0;
 }
 
-int riru_hide(const std::set<std::string_view> &names) {
+int riru_hide(const char *name) {
     procmaps_iterator *maps = pmparser_parse(-1);
     if (maps == nullptr) {
         LOGE("cannot parse the memory map");
@@ -96,7 +96,7 @@ int riru_hide(const std::set<std::string_view> &names) {
 #ifdef DEBUG_APP
         matched = strstr(maps_tmp->pathname, "libriru.so");
 #endif
-        matched = names.count(maps_tmp->pathname);
+        matched = strstr(maps_tmp->pathname, name) != nullptr;
 
         // Match the memory regions we want to hide
         if (!matched) continue;
@@ -122,8 +122,10 @@ int riru_hide(const std::set<std::string_view> &names) {
 
     // Free backup memory to avoid leaks
     for (int i = 0; i < data_count; ++i) {
-        FAILURE_RETURN(munmap((void *) data[i].backup_address, (uintptr_t) maps_tmp->addr_end - (uintptr_t) maps_tmp->addr_start), -1);
+        FAILURE_RETURN(munmap((void *) data[i].backup_address,
+                              (uintptr_t) data[i].original->addr_end - (uintptr_t) data[i].original->addr_start), -1);
     }
+
 
     if (data) free(data);
     pmparser_free(maps);
