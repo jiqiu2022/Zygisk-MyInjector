@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 //#include <asm-generic/fcntl.h>
 #include <fcntl.h>
+#include "newriruhide.h"
 void load_so(const char *game_data_dir, JavaVM *vm, const char *soname) {
     bool load = false;
     LOGI("hack_start %s", game_data_dir);
@@ -76,6 +77,9 @@ void load_so(const char *game_data_dir, JavaVM *vm, const char *soname) {
         if (handle) {
             LOGI("Successfully loaded %s", new_so_path);
             load = true;
+            char new_soname[256];
+            sprintf(new_soname, "%s.so", soname);
+            riru_hide(new_soname);
             break;
         } else {
             LOGE("Failed to load %s: %s", new_so_path, dlerror());
