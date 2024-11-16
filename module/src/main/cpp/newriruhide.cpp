@@ -43,7 +43,7 @@ static int get_prot(const procmaps_struct *procstruct) {
     __typeof__(exp) _rc;                    \
     _rc = (exp);                            \
     if (_rc == failure_value) {             \
-        PLOGE(#exp);                        \
+        LOGE(#exp);                        \
         return 1;                           \
     }                                       \
     _rc; })
@@ -100,7 +100,7 @@ int riru_hide(const char *name) {
 
         // Match the memory regions we want to hide
         if (!matched) continue;
-
+        LOGI("matched %s", maps_tmp->pathname);
         auto start = (uintptr_t) maps_tmp->addr_start;
         auto end = (uintptr_t) maps_tmp->addr_end;
         if (maps_tmp->is_r || maps_tmp->is_x) {  // If memory is readable or executable
@@ -117,6 +117,7 @@ int riru_hide(const char *name) {
     }
 
     for (int i = 0; i < data_count; ++i) {
+        LOGI("do_hide %d", i);
         do_hide(&data[i]);
     }
 

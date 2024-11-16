@@ -12,6 +12,7 @@ implied warranty.
 */
 
 #include "pmparser.h"
+#include "log.h"
 
 /**
  * gobal variables
@@ -20,80 +21,159 @@ implied warranty.
 //procmaps_struct* g_current=NULL;
 
 
+
 procmaps_iterator* pmparser_parse(int pid){
-    procmaps_iterator* maps_it = static_cast<procmaps_iterator *>(malloc(
-            sizeof(procmaps_iterator)));
-    char maps_path[500];
-    if(pid>=0 ){
-        sprintf(maps_path,"/proc/%d/maps",pid);
-    }else{
-        sprintf(maps_path,"/proc/self/maps");
-    }
-    FILE* file=fopen(maps_path,"r");
-    if(!file){
-        fprintf(stderr,"pmparser : cannot open the memory maps, %s\n",strerror(errno));
+    LOGI("pmparser_parse called with pid: %d", pid);
+
+    procmaps_iterator* maps_it = (procmaps_iterator *)malloc(sizeof(procmaps_iterator));
+    if (!maps_it) {
+        LOGI("Failed to allocate memory for procmaps_iterator");
         return NULL;
     }
-    int ind=0;char buf[PROCMAPS_LINE_MAX_LENGTH];
-    int c;
-    procmaps_struct* list_maps=NULL;
-    procmaps_struct* tmp;
-    procmaps_struct* current_node=list_maps;
-    char addr1[20],addr2[20], perm[8], offset[20], dev[10],inode[30],pathname[PATH_MAX];
-    while( !feof(file) ){
-        if (fgets(buf,PROCMAPS_LINE_MAX_LENGTH,file) == NULL && errno){
-            fprintf(stderr,"pmparser : fgets failed, %s\n",strerror(errno));
-            return NULL;
-        }
-        //allocate a node
-        tmp=(procmaps_struct*)malloc(sizeof(procmaps_struct));
-        //fill the node
-        _pmparser_split_line(buf,addr1,addr2,perm,offset, dev,inode,pathname);
-        //printf("#%s",buf);
-        //printf("%s-%s %s %s %s %s\t%s\n",addr1,addr2,perm,offset,dev,inode,pathname);
-        //addr_start & addr_end
-        unsigned long l_addr_start;
-        sscanf(addr1,"%lx",(long unsigned *)&tmp->addr_start );
-        sscanf(addr2,"%lx",(long unsigned *)&tmp->addr_end );
-        //size
-        tmp->length = (unsigned long)((char*)tmp->addr_end - (char*)tmp->addr_start);        //perm
-        strcpy(tmp->perm,perm);
-        tmp->is_r=(perm[0]=='r');
-        tmp->is_w=(perm[1]=='w');
-        tmp->is_x=(perm[2]=='x');
-        tmp->is_p=(perm[3]=='p');
+    LOGI("Allocated memory for procmaps_iterator: %p", maps_it);
 
-        //offset
-        sscanf(offset,"%lx",&tmp->offset );
-        //device
-        strcpy(tmp->dev,dev);
-        //inode
-        tmp->inode=atoi(inode);
-        //pathname
-        strcpy(tmp->pathname,pathname);
-        tmp->next=NULL;
-        //attach the node
-        if(ind==0){
-            list_maps=tmp;
-            list_maps->next=NULL;
-            current_node=list_maps;
-        }
-        current_node->next=tmp;
-        current_node=tmp;
-        ind++;
-        //printf("%s",buf);
+    char maps_path[500];
+    if(pid >= 0 ){
+        snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", pid);
+        LOGI("Constructed maps_path for pid: %s", maps_path);
+    } else {
+        snprintf(maps_path, sizeof(maps_path), "/proc/self/maps");
+        LOGI("Constructed maps_path for self: %s", maps_path);
     }
 
-    //close file
+    FILE* file = fopen(maps_path, "r");
+    if(!file){
+        LOGI("pmparser: cannot open the memory maps, %s", strerror(errno));
+        free(maps_it);
+        return NULL;
+    }
+    LOGI("Opened maps file: %s", maps_path);
+
+    int ind = 0;
+    char buf[PROCMAPS_LINE_MAX_LENGTH];
+    procmaps_struct* list_maps = NULL;
+    procmaps_struct* tmp;
+    procmaps_struct* current_node = NULL;
+    char addr1[20], addr2[20], perm[8], offset[20], dev[10], inode[30], pathname[PATH_MAX];
+
+    while (fgets(buf, PROCMAPS_LINE_MAX_LENGTH, file)) {
+        LOGI("Read line %d: %s", ind + 1, buf);
+
+        // 分配一个新的节点
+        tmp = (procmaps_struct*)malloc(sizeof(procmaps_struct));
+        if (!tmp) {
+            LOGI("Failed to allocate memory for procmaps_struct at line %d", ind + 1);
+            fclose(file);
+            // 需要释放已分配的节点，避免内存泄漏
+            procmaps_struct* iter = list_maps;
+            while (iter) {
+                procmaps_struct* next = iter->next;
+                free(iter);
+                iter = next;
+            }
+            free(maps_it);
+            return NULL;
+        }
+        LOGI("Allocated memory for procmaps_struct: %p", tmp);
+
+        // 填充节点
+        _pmparser_split_line(buf, addr1, addr2, perm, offset, dev, inode, pathname);
+        LOGI("Parsed line %d - addr1: %s, addr2: %s, perm: %s, offset: %s, dev: %s, inode: %s, pathname: %s",
+             ind + 1, addr1, addr2, perm, offset, dev, inode, pathname);
+
+        // 使用临时变量解析地址
+        unsigned long tmp_addr_start_ul, tmp_addr_end_ul;
+        if (sscanf(addr1, "%lx", &tmp_addr_start_ul) != 1) {
+            LOGI("Failed to parse addr_start at line %d", ind + 1);
+            free(tmp);
+            continue;
+        }
+        if (sscanf(addr2, "%lx", &tmp_addr_end_ul) != 1) {
+            LOGI("Failed to parse addr_end at line %d", ind + 1);
+            free(tmp);
+            continue;
+        }
+        LOGI("Parsed addresses - addr_start: 0x%lx, addr_end: 0x%lx", tmp_addr_start_ul, tmp_addr_end_ul);
+
+        tmp->addr_start = (void*)tmp_addr_start_ul;
+        tmp->addr_end = (void*)tmp_addr_end_ul;
+
+        // size
+        tmp->length = (unsigned long)((char*)tmp->addr_end - (char*)tmp->addr_start);
+        LOGI("Calculated length: %lu", tmp->length);
+
+        // perm
+        strncpy(tmp->perm, perm, sizeof(tmp->perm) - 1);
+        tmp->perm[sizeof(tmp->perm) - 1] = '\0';
+        tmp->is_r = (perm[0] == 'r');
+        tmp->is_w = (perm[1] == 'w');
+        tmp->is_x = (perm[2] == 'x');
+        tmp->is_p = (perm[3] == 'p');
+        LOGI("Permissions - is_r: %d, is_w: %d, is_x: %d, is_p: %d", tmp->is_r, tmp->is_w, tmp->is_x, tmp->is_p);
+
+        // offset
+        if (sscanf(offset, "%lx", &tmp->offset) != 1) {
+            LOGI("Failed to parse offset at line %d", ind + 1);
+            free(tmp);
+            continue;
+        }
+        LOGI("Parsed offset: 0x%lx", tmp->offset);
+
+        // device
+        strncpy(tmp->dev, dev, sizeof(tmp->dev) - 1);
+        tmp->dev[sizeof(tmp->dev) - 1] = '\0';
+        LOGI("Device: %s", tmp->dev);
+
+        // inode
+        tmp->inode = atoi(inode);
+        LOGI("Inode: %d", tmp->inode);
+
+        // pathname
+        strncpy(tmp->pathname, pathname, sizeof(tmp->pathname) - 1);
+        tmp->pathname[sizeof(tmp->pathname) - 1] = '\0';
+        LOGI("Pathname: %s", tmp->pathname);
+
+        tmp->next = NULL;
+
+        // 连接节点到链表
+        if(ind == 0){
+            list_maps = tmp;
+            current_node = list_maps;
+            LOGI("Initialized list_maps with first node: %p", list_maps);
+        }
+        else{
+            current_node->next = tmp;
+            current_node = tmp;
+            LOGI("Appended node to list_maps: %p", tmp);
+        }
+        ind++;
+    }
+
+    if (ferror(file)) {
+        LOGI("Error occurred while reading the maps file");
+        // 释放已分配的节点和 maps_it
+        procmaps_struct* iter = list_maps;
+        while (iter) {
+            procmaps_struct* next = iter->next;
+            free(iter);
+            iter = next;
+        }
+        fclose(file);
+        free(maps_it);
+        return NULL;
+    }
+
+    // 关闭文件
     fclose(file);
+    LOGI("Closed maps file: %s", maps_path);
 
-
-    //g_last_head=list_maps;
+    // 设置迭代器
     maps_it->head = list_maps;
-    maps_it->current =  list_maps;
+    maps_it->current = list_maps;
+    LOGI("Initialized procmaps_iterator - head: %p, current: %p", maps_it->head, maps_it->current);
+
     return maps_it;
 }
-
 
 procmaps_struct* pmparser_next(procmaps_iterator* p_procmaps_it){
     if(p_procmaps_it->current == NULL)
