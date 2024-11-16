@@ -43,7 +43,7 @@ static int get_prot(const procmaps_struct *procstruct) {
     __typeof__(exp) _rc;                    \
     _rc = (exp);                            \
     if (_rc == failure_value) {             \
-        LOGE(#exp);                        \
+        PLOGE(#exp);                        \
         return 1;                           \
     }                                       \
     _rc; })
