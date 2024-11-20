@@ -2,11 +2,16 @@
 
 
 
+最新开发进度：**多模块注入完成，maps隐藏注入完成**（并且修复了riru内存泄漏问题）     现在仍然面临soinfo链表遍历无法隐藏的情况
+
+我会初步进行框架层面的hook进行隐藏，进一步使用自定义linker来伪装成系统库的加载。
+
 原项目https://github.com/Perfare/Zygisk-Il2CppDumper
 
 本项目在原项目基础上做局部更改，请支持原项目作者劳动成果
 
 1. 安装[Magisk](https://github.com/topjohnwu/Magisk) v24以上版本并开启Zygisk
+
 2. 生成模块
    - GitHub Actions
      1. Fork这个项目
@@ -19,21 +24,33 @@
      1. 下载源码
      2. 编辑`game.h`, 修改`GamePackageName`为游戏包名
      3. 使用Android Studio运行gradle任务`:module:assembleRelease`编译，zip包会生成在`out`文件夹下
+
 3. 在Magisk里安装模块
 
 4. 将要注入的so放入到/data/local/tmp下修改为test.so
 
    (部分手机第一次注入不会成功，请重启，再之后的注入会成功)
 
+多模块注入已经开发完成：
+
+```
+void hack_start(const char *game_data_dir,JavaVM *vm) {
+    load_so(game_data_dir,vm,"test");
+    //如果要注入多个so，那么就在这里不断的添加load_so函数即可
+}
+```
+
+
+
 目前正在开发的分支：
 
 ​	1. 使用Java的System.load加载so
 
-​	2. 注入多个so的分支
+​	2. 注入多个so的分支(已完成)
 
 计划开发：
 
-1. 第一步，仿照Riru，将注入的so进行内存上的初步隐藏（可以对抗部分业务检测，游戏安全相关已经补齐，建议不要尝试）
+1. 第一步，仿照Riru，将注入的so进行内存上的初步隐藏（可以对抗部分业务检测，游戏安全相关已经补齐，建议不要尝试）（已经开发完成）
 2. 第二步，实现一个自定义的linker，进行更深层次的注入隐藏
 3. 第三步，搭配对应配套手机的内核模块对注入的模块进行进一步完美擦除，达到完美注入的目的
 
