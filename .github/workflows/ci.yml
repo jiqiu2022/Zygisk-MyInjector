@@ -27,7 +27,7 @@ jobs:
       uses: android-actions/setup-android@v3
     
     - name: Cache Gradle dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.gradle/caches
@@ -104,13 +104,15 @@ jobs:
         unzip -l zygisk-myinjector-ci.zip
     
     - name: Upload Module Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: module-ci-${{ github.sha }}
         path: zygisk-myinjector-ci.zip
+        retention-days: 7
         
     - name: Upload ConfigApp Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: configapp-ci-${{ github.sha }}
         path: configapp/build/outputs/apk/debug/configapp-debug.apk
+        retention-days: 7
