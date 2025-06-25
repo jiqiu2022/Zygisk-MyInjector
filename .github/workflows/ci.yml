@@ -2,9 +2,10 @@ name: CI Build
 
 on:
   push:
-    branches: [ main, develop, master ]
+    branches: [ '**' ]  # 所有分支的推送都会触发
   pull_request:
     branches: [ main, develop, master ]
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
