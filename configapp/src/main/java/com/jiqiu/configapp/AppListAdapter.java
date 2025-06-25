@@ -22,9 +22,14 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
     private List<AppInfo> appList;
     private List<AppInfo> filteredAppList;
     private OnAppToggleListener onAppToggleListener;
+    private OnAppClickListener onAppClickListener;
     
     public interface OnAppToggleListener {
         void onAppToggle(AppInfo appInfo, boolean isEnabled);
+    }
+    
+    public interface OnAppClickListener {
+        void onAppClick(AppInfo appInfo);
     }
     
     public AppListAdapter() {
@@ -40,6 +45,10 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
     
     public void setOnAppToggleListener(OnAppToggleListener listener) {
         this.onAppToggleListener = listener;
+    }
+    
+    public void setOnAppClickListener(OnAppClickListener listener) {
+        this.onAppClickListener = listener;
     }
     
     public void filterApps(String query, boolean hideSystemApps) {
@@ -118,6 +127,13 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
                 appInfo.setEnabled(isChecked);
                 if (onAppToggleListener != null) {
                     onAppToggleListener.onAppToggle(appInfo, isChecked);
+                }
+            });
+            
+            // 设置整个item的点击监听器
+            itemView.setOnClickListener(v -> {
+                if (onAppClickListener != null) {
+                    onAppClickListener.onAppClick(appInfo);
                 }
             });
         }

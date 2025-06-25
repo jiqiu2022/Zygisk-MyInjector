@@ -10,6 +10,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
+import android.app.Dialog;
+import android.widget.CheckBox;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -18,6 +22,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,7 +33,7 @@ import java.util.List;
 /**
  * 应用列表Fragment
  */
-public class AppListFragment extends Fragment implements AppListAdapter.OnAppToggleListener {
+public class AppListFragment extends Fragment implements AppListAdapter.OnAppToggleListener, AppListAdapter.OnAppClickListener {
     
     private RecyclerView recyclerView;
     private AppListAdapter adapter;
@@ -66,6 +72,7 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
     private void setupRecyclerView() {
         adapter = new AppListAdapter();
         adapter.setOnAppToggleListener(this);
+        adapter.setOnAppClickListener(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
     }
@@ -109,6 +116,149 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         configManager.setAppEnabled(appInfo.getPackageName(), isEnabled);
         android.util.Log.d("AppListFragment", 
             "App " + appInfo.getAppName() + " toggle: " + isEnabled);
+    }
+    
+    @Override
+    public void onAppClick(AppInfo appInfo) {
+        showAppConfigDialog(appInfo);
+    }
+    
+    private void showAppConfigDialog(AppInfo appInfo) {
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_app_config, null);
+        
+        // Set app info
+        ImageView appIcon = dialogView.findViewById(R.id.appIcon);
+        TextView appName = dialogView.findViewById(R.id.appName);
+        TextView packageName = dialogView.findViewById(R.id.packageName);
+        RecyclerView soListRecyclerView = dialogView.findViewById(R.id.soListRecyclerView);
+        TextView emptyText = dialogView.findViewById(R.id.emptyText);
+        SwitchMaterial switchHideInjection = dialogView.findViewById(R.id.switchHideInjection);
+        
+        appIcon.setImageDrawable(appInfo.getAppIcon());
+        appName.setText(appInfo.getAppName());
+        packageName.setText(appInfo.getPackageName());
+        
+        // Load current config
+        boolean hideInjection = configManager.getHideInjection();
+        switchHideInjection.setChecked(hideInjection);
+        
+        // Setup SO list
+        List<ConfigManager.SoFile> globalSoFiles = configManager.getAllSoFiles();
+        List<ConfigManager.SoFile> appSoFiles = configManager.getAppSoFiles(appInfo.getPackageName());
+        
+        if (globalSoFiles.isEmpty()) {
+            emptyText.setVisibility(View.VISIBLE);
+            soListRecyclerView.setVisibility(View.GONE);
+        } else {
+            emptyText.setVisibility(View.GONE);
+            soListRecyclerView.setVisibility(View.VISIBLE);
+            
+            SoSelectionAdapter soAdapter = new SoSelectionAdapter(globalSoFiles, appSoFiles);
+            soListRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+            soListRecyclerView.setAdapter(soAdapter);
+        }
+        
+        // Create dialog
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(getContext())
+                .setTitle("配置注入")
+                .setView(dialogView)
+                .setPositiveButton("保存", (dialog, which) -> {
+                    // Save hide injection setting
+                    configManager.setHideInjection(switchHideInjection.isChecked());
+                    
+                    // Save SO selection
+                    if (soListRecyclerView.getAdapter() != null) {
+                        SoSelectionAdapter adapter = (SoSelectionAdapter) soListRecyclerView.getAdapter();
+                        List<ConfigManager.SoFile> selectedSoFiles = adapter.getSelectedSoFiles();
+                        
+                        // Clear existing SO files for this app
+                        for (ConfigManager.SoFile existingSo : appSoFiles) {
+                            configManager.removeSoFileFromApp(appInfo.getPackageName(), existingSo);
+                        }
+                        
+                        // Add selected SO files
+                        for (ConfigManager.SoFile soFile : selectedSoFiles) {
+                            configManager.addSoFileToApp(appInfo.getPackageName(), soFile);
+                        }
+                    }
+                })
+                .setNegativeButton("取消", null);
+        
+        builder.show();
+    }
+    
+    // Inner class for SO selection adapter
+    private static class SoSelectionAdapter extends RecyclerView.Adapter<SoSelectionAdapter.ViewHolder> {
+        private List<ConfigManager.SoFile> globalSoFiles;
+        private List<ConfigManager.SoFile> selectedSoFiles;
+        
+        public SoSelectionAdapter(List<ConfigManager.SoFile> globalSoFiles, List<ConfigManager.SoFile> appSoFiles) {
+            this.globalSoFiles = globalSoFiles;
+            this.selectedSoFiles = new ArrayList<>(appSoFiles);
+        }
+        
+        public List<ConfigManager.SoFile> getSelectedSoFiles() {
+            return new ArrayList<>(selectedSoFiles);
+        }
+        
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_so_selection, parent, false);
+            return new ViewHolder(view);
+        }
+        
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            ConfigManager.SoFile soFile = globalSoFiles.get(position);
+            holder.bind(soFile, selectedSoFiles);
+        }
+        
+        @Override
+        public int getItemCount() {
+            return globalSoFiles.size();
+        }
+        
+        class ViewHolder extends RecyclerView.ViewHolder {
+            CheckBox checkBox;
+            TextView nameText;
+            TextView pathText;
+            
+            ViewHolder(@NonNull View itemView) {
+                super(itemView);
+                checkBox = itemView.findViewById(R.id.checkBox);
+                nameText = itemView.findViewById(R.id.textName);
+                pathText = itemView.findViewById(R.id.textPath);
+            }
+            
+            void bind(ConfigManager.SoFile soFile, List<ConfigManager.SoFile> selectedList) {
+                nameText.setText(soFile.name);
+                pathText.setText(soFile.originalPath);
+                
+                // Check if this SO is selected
+                boolean isSelected = false;
+                for (ConfigManager.SoFile selected : selectedList) {
+                    if (selected.storedPath.equals(soFile.storedPath)) {
+                        isSelected = true;
+                        break;
+                    }
+                }
+                
+                checkBox.setOnCheckedChangeListener(null);
+                checkBox.setChecked(isSelected);
+                
+                checkBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                    if (isChecked) {
+                        selectedList.add(soFile);
+                    } else {
+                        selectedList.removeIf(s -> s.storedPath.equals(soFile.storedPath));
+                    }
+                });
+                
+                itemView.setOnClickListener(v -> checkBox.toggle());
+            }
+        }
     }
     
     /**

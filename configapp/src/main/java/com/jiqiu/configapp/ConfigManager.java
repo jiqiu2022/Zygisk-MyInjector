@@ -146,41 +146,30 @@ public class ConfigManager {
         saveConfig();
     }
     
-    public void addSoFileToApp(String packageName, String originalPath, boolean deleteOriginal) {
+    public void addSoFileToApp(String packageName, SoFile globalSoFile) {
         AppConfig appConfig = config.perAppConfig.get(packageName);
         if (appConfig == null) {
             appConfig = new AppConfig();
             config.perAppConfig.put(packageName, appConfig);
         }
         
-        // Generate unique filename
-        String fileName = new File(originalPath).getName();
-        String storedPath = SO_STORAGE_DIR + "/" + System.currentTimeMillis() + "_" + fileName;
-        
-        // Copy SO file to our storage
-        Shell.Result result = Shell.cmd("cp \"" + originalPath + "\" \"" + storedPath + "\"").exec();
-        if (result.isSuccess()) {
-            SoFile soFile = new SoFile();
-            soFile.name = fileName;
-            soFile.storedPath = storedPath;
-            soFile.originalPath = originalPath;
-            appConfig.soFiles.add(soFile);
-            
-            if (deleteOriginal) {
-                Shell.cmd("rm \"" + originalPath + "\"").exec();
+        // Check if already added
+        for (SoFile existing : appConfig.soFiles) {
+            if (existing.storedPath.equals(globalSoFile.storedPath)) {
+                return; // Already added
             }
-            
-            saveConfig();
         }
+        
+        // Add reference to the global SO file
+        appConfig.soFiles.add(globalSoFile);
+        saveConfig();
     }
     
     public void removeSoFileFromApp(String packageName, SoFile soFile) {
         AppConfig appConfig = config.perAppConfig.get(packageName);
         if (appConfig == null) return;
         
-        appConfig.soFiles.remove(soFile);
-        // Delete the stored file
-        Shell.cmd("rm " + soFile.storedPath).exec();
+        appConfig.soFiles.removeIf(s -> s.storedPath.equals(soFile.storedPath));
         saveConfig();
     }
     
