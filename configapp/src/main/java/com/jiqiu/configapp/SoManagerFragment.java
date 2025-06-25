@@ -43,6 +43,8 @@ public class SoManagerFragment extends Fragment {
         super.onCreate(savedInstanceState);
         
         configManager = new ConfigManager(requireContext());
+        // Ensure module directories exist
+        configManager.ensureModuleDirectories();
         
         // Initialize file picker
         filePickerLauncher = registerForActivityResult(

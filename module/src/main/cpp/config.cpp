@@ -175,8 +175,10 @@ namespace Config {
         
         auto it = g_config.perAppConfig.find(packageName);
         if (it != g_config.perAppConfig.end()) {
+            LOGD("Found app config for %s with %zu SO files", packageName.c_str(), it->second.soFiles.size());
             return it->second.soFiles;
         }
+        LOGD("No app config found for %s", packageName.c_str());
         return {};
     }
     

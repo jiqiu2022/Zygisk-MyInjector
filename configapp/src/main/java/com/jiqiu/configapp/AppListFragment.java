@@ -56,6 +56,8 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         super.onViewCreated(view, savedInstanceState);
         
         configManager = new ConfigManager(requireContext());
+        // Ensure module directories exist
+        configManager.ensureModuleDirectories();
         
         initViews(view);
         setupRecyclerView();
