@@ -18,6 +18,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
     private BottomNavigationView bottomNavigationView;
     private AppListFragment appListFragment;
     private SettingsFragment settingsFragment;
+    private SoManagerFragment soManagerFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +50,9 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             if (itemId == R.id.navigation_apps) {
                 showAppListFragment();
                 return true;
+            } else if (itemId == R.id.navigation_so_manager) {
+                showSoManagerFragment();
+                return true;
             } else if (itemId == R.id.navigation_settings) {
                 showSettingsFragment();
                 return true;
@@ -62,6 +66,13 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             appListFragment = new AppListFragment();
         }
         showFragment(appListFragment);
+    }
+
+    private void showSoManagerFragment() {
+        if (soManagerFragment == null) {
+            soManagerFragment = new SoManagerFragment();
+        }
+        showFragment(soManagerFragment);
     }
 
     private void showSettingsFragment() {

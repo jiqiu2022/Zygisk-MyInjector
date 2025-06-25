@@ -6,6 +6,11 @@
         android:title="@string/title_apps" />
 
     <item
+        android:id="@+id/navigation_so_manager"
+        android:icon="@android:drawable/ic_menu_save"
+        android:title="@string/title_so_manager" />
+        
+    <item
         android:id="@+id/navigation_settings"
         android:icon="@android:drawable/ic_menu_preferences"
         android:title="@string/title_settings" />

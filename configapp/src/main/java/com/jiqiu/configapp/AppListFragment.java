@@ -36,6 +36,7 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
     
     private List<AppInfo> allApps;
     private boolean hideSystemApps = false;
+    private ConfigManager configManager;
     
     @Nullable
     @Override
@@ -47,6 +48,8 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        
+        configManager = new ConfigManager(requireContext());
         
         initViews(view);
         setupRecyclerView();
@@ -102,8 +105,8 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
     
     @Override
     public void onAppToggle(AppInfo appInfo, boolean isEnabled) {
-        // 这里可以保存应用的启用状态到配置文件或数据库
-        // 暂时只是打印日志
+        // 保存应用的启用状态到配置文件
+        configManager.setAppEnabled(appInfo.getPackageName(), isEnabled);
         android.util.Log.d("AppListFragment", 
             "App " + appInfo.getAppName() + " toggle: " + isEnabled);
     }
@@ -132,6 +135,9 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
                         pm.getApplicationIcon(appInfo),
                         isSystemApp
                     );
+                    
+                    // 从配置中加载启用状态
+                    app.setEnabled(configManager.isAppEnabled(packageName));
                     
                     apps.add(app);
                 } catch (Exception e) {

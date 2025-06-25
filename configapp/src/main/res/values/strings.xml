@@ -3,6 +3,7 @@
 
     <!-- 底部导航 -->
     <string name="title_apps">应用列表</string>
+    <string name="title_so_manager">SO库管理</string>
     <string name="title_settings">全局设置</string>
 
     <!-- 应用列表 -->

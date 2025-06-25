@@ -11,6 +11,7 @@
 #include "game.h"
 #include "log.h"
 #include "dlfcn.h"
+#include "config.h"
 using zygisk::Api;
 using zygisk::AppSpecializeArgs;
 using zygisk::ServerSpecializeArgs;
@@ -51,7 +52,11 @@ private:
     size_t length;
 
     void preSpecialize(const char *package_name, const char *app_data_dir) {
-        if (strcmp(package_name, AimPackageName) == 0) {
+        // Read configuration
+        Config::readConfig();
+        
+        // Check if this app is enabled for injection
+        if (Config::isAppEnabled(package_name)) {
             LOGI("成功注入目标进程: %s", package_name);
             enable_hack = true;
             _data_dir = new char[strlen(app_data_dir) + 1];
