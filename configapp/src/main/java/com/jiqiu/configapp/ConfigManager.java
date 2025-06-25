@@ -104,6 +104,48 @@ public class ConfigManager {
         return new ArrayList<>(appConfig.soFiles);
     }
     
+    public List<SoFile> getAllSoFiles() {
+        if (config.globalSoFiles == null) {
+            config.globalSoFiles = new ArrayList<>();
+        }
+        return new ArrayList<>(config.globalSoFiles);
+    }
+    
+    public void addGlobalSoFile(String originalPath, boolean deleteOriginal) {
+        if (config.globalSoFiles == null) {
+            config.globalSoFiles = new ArrayList<>();
+        }
+        
+        // Generate unique filename
+        String fileName = new File(originalPath).getName();
+        String storedPath = SO_STORAGE_DIR + "/" + System.currentTimeMillis() + "_" + fileName;
+        
+        // Copy SO file to our storage
+        Shell.Result result = Shell.cmd("cp \"" + originalPath + "\" \"" + storedPath + "\"").exec();
+        if (result.isSuccess()) {
+            SoFile soFile = new SoFile();
+            soFile.name = fileName;
+            soFile.storedPath = storedPath;
+            soFile.originalPath = originalPath;
+            config.globalSoFiles.add(soFile);
+            
+            if (deleteOriginal) {
+                Shell.cmd("rm \"" + originalPath + "\"").exec();
+            }
+            
+            saveConfig();
+        }
+    }
+    
+    public void removeGlobalSoFile(SoFile soFile) {
+        if (config.globalSoFiles == null) return;
+        
+        config.globalSoFiles.remove(soFile);
+        // Delete the stored file
+        Shell.cmd("rm \"" + soFile.storedPath + "\"").exec();
+        saveConfig();
+    }
+    
     public void addSoFileToApp(String packageName, String originalPath, boolean deleteOriginal) {
         AppConfig appConfig = config.perAppConfig.get(packageName);
         if (appConfig == null) {
@@ -116,7 +158,7 @@ public class ConfigManager {
         String storedPath = SO_STORAGE_DIR + "/" + System.currentTimeMillis() + "_" + fileName;
         
         // Copy SO file to our storage
-        Shell.Result result = Shell.cmd("cp " + originalPath + " " + storedPath).exec();
+        Shell.Result result = Shell.cmd("cp \"" + originalPath + "\" \"" + storedPath + "\"").exec();
         if (result.isSuccess()) {
             SoFile soFile = new SoFile();
             soFile.name = fileName;
@@ -125,7 +167,7 @@ public class ConfigManager {
             appConfig.soFiles.add(soFile);
             
             if (deleteOriginal) {
-                Shell.cmd("rm " + originalPath).exec();
+                Shell.cmd("rm \"" + originalPath + "\"").exec();
             }
             
             saveConfig();
@@ -155,6 +197,7 @@ public class ConfigManager {
     public static class ModuleConfig {
         public boolean enabled = true;
         public boolean hideInjection = false;
+        public List<SoFile> globalSoFiles = new ArrayList<>();
         public Map<String, AppConfig> perAppConfig = new HashMap<>();
     }
     

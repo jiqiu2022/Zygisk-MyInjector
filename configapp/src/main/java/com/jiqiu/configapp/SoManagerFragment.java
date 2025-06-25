@@ -36,6 +36,7 @@ public class SoManagerFragment extends Fragment {
     private List<ConfigManager.SoFile> globalSoFiles = new ArrayList<>();
     
     private ActivityResultLauncher<Intent> filePickerLauncher;
+    private ActivityResultLauncher<Intent> fileBrowserLauncher;
     
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -51,6 +52,19 @@ public class SoManagerFragment extends Fragment {
                     Uri uri = result.getData().getData();
                     if (uri != null) {
                         handleFileSelection(uri);
+                    }
+                }
+            }
+        );
+        
+        // Initialize file browser
+        fileBrowserLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    String path = result.getData().getStringExtra(FileBrowserActivity.EXTRA_SELECTED_PATH);
+                    if (path != null) {
+                        showDeleteOriginalDialog(path);
                     }
                 }
             }
@@ -87,32 +101,16 @@ public class SoManagerFragment extends Fragment {
             Toast.makeText(getContext(), "需要Root权限", Toast.LENGTH_LONG).show();
         } else {
             configManager.ensureModuleDirectories();
+            // Also ensure common directories exist
+            Shell.cmd("mkdir -p /data/local/tmp").exec();
+            Shell.cmd("chmod 777 /data/local/tmp").exec();
             loadSoFiles();
         }
     }
     
     private void loadSoFiles() {
-        // Load global SO files from the storage directory
-        Shell.Result result = Shell.cmd("ls -la " + ConfigManager.SO_STORAGE_DIR).exec();
-        
-        globalSoFiles.clear();
-        if (result.isSuccess()) {
-            for (String line : result.getOut()) {
-                if (line.contains(".so")) {
-                    // Parse file info
-                    String[] parts = line.split("\\s+");
-                    if (parts.length >= 9) {
-                        String fileName = parts[parts.length - 1];
-                        ConfigManager.SoFile soFile = new ConfigManager.SoFile();
-                        soFile.name = fileName;
-                        soFile.storedPath = ConfigManager.SO_STORAGE_DIR + "/" + fileName;
-                        soFile.originalPath = soFile.storedPath; // For display
-                        globalSoFiles.add(soFile);
-                    }
-                }
-            }
-        }
-        
+        // Load global SO files from config
+        globalSoFiles = configManager.getAllSoFiles();
         updateUI();
     }
     
@@ -128,17 +126,67 @@ public class SoManagerFragment extends Fragment {
     }
     
     private void showAddSoDialog() {
-        String[] options = {"从文件管理器选择", "输入路径"};
+        String[] options = {"浏览文件系统", "从外部文件管理器选择", "手动输入路径"};
         
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("添加SO文件")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
+                        openFileBrowser();
+                    } else if (which == 1) {
                         openFilePicker();
                     } else {
                         showPathInputDialog();
                     }
                 })
+                .show();
+    }
+    
+    private void openFileBrowser() {
+        // Show path selection dialog first
+        String[] paths = {
+            "/data/local/tmp",
+            "/sdcard",
+            "/sdcard/Download",
+            "/storage/emulated/0",
+            "自定义路径..."
+        };
+        
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("选择起始目录")
+                .setItems(paths, (dialog, which) -> {
+                    if (which == paths.length - 1) {
+                        // Custom path
+                        showCustomPathDialog();
+                    } else {
+                        Intent intent = new Intent(getContext(), FileBrowserActivity.class);
+                        intent.putExtra(FileBrowserActivity.EXTRA_START_PATH, paths[which]);
+                        intent.putExtra(FileBrowserActivity.EXTRA_FILE_FILTER, ".so");
+                        fileBrowserLauncher.launch(intent);
+                    }
+                })
+                .show();
+    }
+    
+    private void showCustomPathDialog() {
+        View view = getLayoutInflater().inflate(R.layout.dialog_input, null);
+        android.widget.EditText editText = view.findViewById(android.R.id.edit);
+        editText.setText("/");
+        editText.setHint("输入起始路径");
+        
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("自定义起始路径")
+                .setView(view)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    String path = editText.getText().toString().trim();
+                    if (!path.isEmpty()) {
+                        Intent intent = new Intent(getContext(), FileBrowserActivity.class);
+                        intent.putExtra(FileBrowserActivity.EXTRA_START_PATH, path);
+                        intent.putExtra(FileBrowserActivity.EXTRA_FILE_FILTER, ".so");
+                        fileBrowserLauncher.launch(intent);
+                    }
+                })
+                .setNegativeButton("取消", null)
                 .show();
     }
     
@@ -152,6 +200,7 @@ public class SoManagerFragment extends Fragment {
     private void showPathInputDialog() {
         View view = getLayoutInflater().inflate(R.layout.dialog_input, null);
         android.widget.EditText editText = view.findViewById(android.R.id.edit);
+        editText.setText("/data/local/tmp/");
         editText.setHint("/data/local/tmp/example.so");
         
         new MaterialAlertDialogBuilder(requireContext())
@@ -160,7 +209,7 @@ public class SoManagerFragment extends Fragment {
                 .setPositiveButton("添加", (dialog, which) -> {
                     String path = editText.getText().toString().trim();
                     if (!path.isEmpty()) {
-                        addSoFile(path, false);
+                        showDeleteOriginalDialog(path);
                     }
                 })
                 .setNegativeButton("取消", null)
@@ -175,40 +224,38 @@ public class SoManagerFragment extends Fragment {
             if (path.startsWith("file://")) {
                 path = path.substring(7);
             }
-            addSoFile(path, false);
+            showDeleteOriginalDialog(path);
         }
+    }
+    
+    private void showDeleteOriginalDialog(String path) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle("删除原文件")
+                .setMessage("是否删除原始SO文件？\n\n文件路径：" + path)
+                .setPositiveButton("删除原文件", (dialog, which) -> {
+                    addSoFile(path, true);
+                })
+                .setNegativeButton("保留原文件", (dialog, which) -> {
+                    addSoFile(path, false);
+                })
+                .setNeutralButton("取消", null)
+                .show();
     }
     
     private void addSoFile(String path, boolean deleteOriginal) {
         // Verify file exists
-        Shell.Result result = Shell.cmd("test -f " + path + " && echo 'exists'").exec();
+        Shell.Result result = Shell.cmd("test -f \"" + path + "\" && echo 'exists'").exec();
         if (!result.isSuccess() || result.getOut().isEmpty()) {
             Toast.makeText(getContext(), "文件不存在: " + path, Toast.LENGTH_SHORT).show();
             return;
         }
         
-        // Generate unique filename
-        String fileName = new File(path).getName();
-        String storedPath = ConfigManager.SO_STORAGE_DIR + "/" + System.currentTimeMillis() + "_" + fileName;
+        // Add to global SO files
+        configManager.addGlobalSoFile(path, deleteOriginal);
         
-        // Copy file
-        result = Shell.cmd("cp " + path + " " + storedPath).exec();
-        if (result.isSuccess()) {
-            ConfigManager.SoFile soFile = new ConfigManager.SoFile();
-            soFile.name = fileName;
-            soFile.storedPath = storedPath;
-            soFile.originalPath = path;
-            globalSoFiles.add(soFile);
-            
-            if (deleteOriginal) {
-                Shell.cmd("rm " + path).exec();
-            }
-            
-            updateUI();
-            Toast.makeText(getContext(), "SO文件已添加", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(getContext(), "复制文件失败", Toast.LENGTH_SHORT).show();
-        }
+        // Reload the list
+        loadSoFiles();
+        Toast.makeText(getContext(), "SO文件已添加", Toast.LENGTH_SHORT).show();
     }
     
     private void showDeleteConfirmation(ConfigManager.SoFile soFile) {
@@ -223,9 +270,8 @@ public class SoManagerFragment extends Fragment {
     }
     
     private void deleteSoFile(ConfigManager.SoFile soFile) {
-        Shell.cmd("rm " + soFile.storedPath).exec();
-        globalSoFiles.remove(soFile);
-        updateUI();
+        configManager.removeGlobalSoFile(soFile);
+        loadSoFiles();
         Toast.makeText(getContext(), "SO文件已删除", Toast.LENGTH_SHORT).show();
     }
 }

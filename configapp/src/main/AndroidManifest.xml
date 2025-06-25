@@ -20,6 +20,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        
+        <activity
+            android:name=".FileBrowserActivity"
+            android:parentActivityName=".MainActivity" />
+            
+        <activity
+            android:name=".AppSoConfigActivity"
+            android:parentActivityName=".MainActivity" />
     </application>
 
 </manifest>
