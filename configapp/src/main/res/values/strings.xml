@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">MyInjector Config</string>
+
+    <!-- 底部导航 -->
+    <string name="title_apps">应用列表</string>
+    <string name="title_so_manager">SO库管理</string>
+    <string name="title_settings">全局设置</string>
+
+    <!-- 应用列表 -->
+    <string name="search_apps">搜索应用</string>
+    <string name="system_app">系统应用</string>
+    <string name="loading_apps">正在加载应用列表...</string>
+
+    <!-- 设置页面 -->
+    <string name="global_settings">全局设置</string>
+    <string name="filter_system_apps">过滤系统应用</string>
+    <string name="filter_system_apps_desc">选择是否在应用列表中显示系统应用</string>
+    <string name="show_all_apps">显示所有应用</string>
+    <string name="hide_system_apps">隐藏系统应用</string>
+
+    <!-- 关于 -->
+    <string name="about">关于</string>
+    <string name="app_description">MyInjector 配置应用，用于管理注入设置</string>
+</resources>

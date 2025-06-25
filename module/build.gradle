@@ -66,6 +66,17 @@ afterEvaluate {
             from("$buildDir/intermediates/stripped_native_libs/$variantLowered/out/lib") {
                 into 'lib'
             }
+            // Copy service.sh
+            from("$projectDir") {
+                include 'service.sh'
+            }
+            // Copy ConfigApp APK if it exists
+            def apkFile = file("$rootDir/configapp/build/outputs/apk/debug/configapp-debug.apk")
+            if (apkFile.exists()) {
+                from(apkFile) {
+                    rename { 'configapp.apk' }
+                }
+            }
             doLast {
                 file("$magiskDir/zygisk").mkdir()
                 fileTree("$magiskDir/lib").visit { f ->
