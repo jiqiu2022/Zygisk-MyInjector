@@ -1,0 +1,115 @@
+name: CI Build
+
+on:
+  push:
+    branches: [ main, develop, master ]
+  pull_request:
+    branches: [ main, develop, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+    
+    - name: Set up JDK 11
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+    
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+      
+    - name: Install NDK
+      run: |
+        echo "y" | sdkmanager "ndk;25.2.9519653"
+        echo "y" | sdkmanager "cmake;3.22.1"
+    
+    - name: Build ConfigApp
+      run: |
+        cd configapp
+        ../gradlew assembleDebug
+        cd ..
+        
+    - name: Build Module
+      run: |
+        cd module
+        ../gradlew assembleRelease
+        cd ..
+    
+    - name: Package Module for Testing
+      run: |
+        # 创建临时目录
+        TEMP_DIR="build/magisk_module"
+        rm -rf $TEMP_DIR
+        mkdir -p $TEMP_DIR
+        
+        # 创建 module.prop
+        cat > $TEMP_DIR/module.prop << EOF
+        id=zygisk-myinjector
+        name=Zygisk MyInjector
+        version=dev-${{ github.sha }}
+        versionCode=9999
+        author=jiqiu2022
+        description=A Zygisk module for dynamic library injection with ConfigApp (CI Build)
+        EOF
+        
+        # 复制文件
+        cp module/service.sh $TEMP_DIR/
+        chmod 755 $TEMP_DIR/service.sh
+        
+        # 创建 zygisk 目录并复制 so 文件
+        mkdir -p $TEMP_DIR/zygisk
+        for arch in armeabi-v7a arm64-v8a x86 x86_64; do
+          SO_PATH="module/build/intermediates/stripped_native_libs/release/out/lib/$arch/libmyinjector.so"
+          if [ -f "$SO_PATH" ]; then
+            cp "$SO_PATH" "$TEMP_DIR/zygisk/$arch.so"
+          fi
+        done
+        
+        # 复制 ConfigApp APK
+        cp configapp/build/outputs/apk/debug/configapp-debug.apk $TEMP_DIR/configapp.apk
+        
+        # 创建 META-INF 目录
+        mkdir -p $TEMP_DIR/META-INF/com/google/android
+        touch $TEMP_DIR/META_INF/com/google/android/update-binary
+        touch $TEMP_DIR/META_INF/com/google/android/updater-script
+        
+        # 打包
+        cd $TEMP_DIR
+        zip -r ../../zygisk-myinjector-ci.zip *
+        cd ../..
+        
+        # 列出文件内容
+        echo "Module contents:"
+        unzip -l zygisk-myinjector-ci.zip
+    
+    - name: Upload Module Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: module-ci-${{ github.sha }}
+        path: zygisk-myinjector-ci.zip
+        
+    - name: Upload ConfigApp Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: configapp-ci-${{ github.sha }}
+        path: configapp/build/outputs/apk/debug/configapp-debug.apk
