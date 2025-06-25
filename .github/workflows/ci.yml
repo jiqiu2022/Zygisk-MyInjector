@@ -6,6 +6,24 @@ on:
   pull_request:
     branches: [ main, develop, master ]
   workflow_dispatch:  # 允许手动触发
+    inputs:
+      create_release:
+        description: 'Create a release after build'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      release_tag:
+        description: 'Release tag (only if creating release)'
+        required: false
+        default: 'ci-latest'
+
+permissions:
+  contents: write  # 允许创建 release
+  packages: write  # 允许上传包
+  actions: read    # 允许读取 actions
 
 jobs:
   build:
@@ -116,3 +134,46 @@ jobs:
         name: configapp-ci-${{ github.sha }}
         path: configapp/build/outputs/apk/debug/configapp-debug.apk
         retention-days: 7
+    
+    - name: Prepare Release Files
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'
+      run: |
+        # 准备发布文件
+        mkdir -p release-files
+        cp zygisk-myinjector-ci.zip release-files/zygisk-myinjector-${{ github.event.inputs.release_tag }}.zip
+        cp configapp/build/outputs/apk/debug/configapp-debug.apk release-files/ConfigApp-${{ github.event.inputs.release_tag }}.apk
+        
+        echo "Release files:"
+        ls -la release-files/
+    
+    - name: Create Release
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: ${{ github.event.inputs.release_tag }}
+        name: CI Release ${{ github.event.inputs.release_tag }}
+        body: |
+          ## CI Build Release
+          
+          - **Build Type**: Manual CI Release
+          - **Commit**: ${{ github.sha }}
+          - **Branch**: ${{ github.ref_name }}
+          - **Run ID**: ${{ github.run_id }}
+          
+          ### 下载
+          - 模块文件: `zygisk-myinjector-${{ github.event.inputs.release_tag }}.zip`
+          - 配置应用: `ConfigApp-${{ github.event.inputs.release_tag }}.apk`
+          
+          ### 安装说明
+          1. 在 Magisk Manager 中安装模块 ZIP
+          2. 重启设备
+          3. ConfigApp 会自动安装
+          
+          ---
+          *这是一个 CI 构建版本，可能不稳定*
+        draft: false
+        prerelease: true
+        files: |
+          release-files/zygisk-myinjector-*.zip
+          release-files/ConfigApp-*.apk
