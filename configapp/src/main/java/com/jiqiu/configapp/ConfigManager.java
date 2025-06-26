@@ -151,9 +151,17 @@ public class ConfigManager {
             config.globalSoFiles = new ArrayList<>();
         }
         
-        // Generate unique filename
+        // Keep original filename
         String fileName = new File(originalPath).getName();
-        String storedPath = SO_STORAGE_DIR + "/" + System.currentTimeMillis() + "_" + fileName;
+        String storedPath = SO_STORAGE_DIR + "/" + fileName;
+        
+        // Check if file already exists with same name
+        for (SoFile existing : config.globalSoFiles) {
+            if (existing.name.equals(fileName)) {
+                Log.w(TAG, "SO file with same name already exists: " + fileName);
+                return;
+            }
+        }
         
         // Copy SO file to our storage
         Shell.Result result = Shell.cmd("cp \"" + originalPath + "\" \"" + storedPath + "\"").exec();
@@ -288,9 +296,8 @@ public class ConfigManager {
         
         // Copy each SO file configured for this app
         for (SoFile soFile : appConfig.soFiles) {
-            // Extract mapped filename
-            String mappedName = new File(soFile.storedPath).getName();
-            String destPath = filesDir + "/" + mappedName;
+            // Use original filename
+            String destPath = filesDir + "/" + soFile.name;
             
             // Check if source file exists
             Shell.Result checkResult = Shell.cmd("test -f \"" + soFile.storedPath + "\" && echo 'exists'").exec();
@@ -354,8 +361,8 @@ public class ConfigManager {
         
         // Only delete the SO files we deployed, not the entire directory
         for (SoFile soFile : appConfig.soFiles) {
-            String mappedName = new File(soFile.storedPath).getName();
-            String filePath = filesDir + "/" + mappedName;
+            // Use original filename
+            String filePath = filesDir + "/" + soFile.name;
             
             Log.i(TAG, "Cleaning up: " + filePath);
             
