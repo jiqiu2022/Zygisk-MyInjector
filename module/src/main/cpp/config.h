@@ -13,8 +13,15 @@ namespace Config {
         std::string originalPath;
     };
     
+    enum class InjectionMethod {
+        STANDARD = 0,
+        RIRU = 1,
+        CUSTOM_LINKER = 2
+    };
+    
     struct AppConfig {
         bool enabled = false;
+        InjectionMethod injectionMethod = InjectionMethod::STANDARD;
         std::vector<SoFile> soFiles;
     };
     
@@ -35,6 +42,9 @@ namespace Config {
     
     // Get hide injection setting
     bool shouldHideInjection();
+    
+    // Get injection method for specific app
+    InjectionMethod getAppInjectionMethod(const std::string& packageName);
 }
 
 #endif // CONFIG_H

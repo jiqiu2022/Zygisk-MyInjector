@@ -42,9 +42,15 @@ public:
 
     void postAppSpecialize(const AppSpecializeArgs *) override {
         if (enable_hack) {
-            // Then start hack thread
-            std::thread hack_thread(hack_prepare, _data_dir, _package_name, data, length);
-            hack_thread.detach();
+            // Get JavaVM
+            JavaVM *vm = nullptr;
+            if (env->GetJavaVM(&vm) == JNI_OK) {
+                // Then start hack thread with JavaVM
+                std::thread hack_thread(hack_prepare, _data_dir, _package_name, data, length, vm);
+                hack_thread.detach();
+            } else {
+                LOGE("Failed to get JavaVM");
+            }
         }
     }
 

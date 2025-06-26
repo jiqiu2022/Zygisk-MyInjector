@@ -227,6 +227,24 @@ public class ConfigManager {
         saveConfig();
     }
     
+    public String getAppInjectionMethod(String packageName) {
+        AppConfig appConfig = config.perAppConfig.get(packageName);
+        if (appConfig == null) {
+            return "standard"; // Default to standard
+        }
+        return appConfig.injectionMethod != null ? appConfig.injectionMethod : "standard";
+    }
+    
+    public void setAppInjectionMethod(String packageName, String method) {
+        AppConfig appConfig = config.perAppConfig.get(packageName);
+        if (appConfig == null) {
+            appConfig = new AppConfig();
+            config.perAppConfig.put(packageName, appConfig);
+        }
+        appConfig.injectionMethod = method;
+        saveConfig();
+    }
+    
     // Copy SO files directly to app's data directory
     private void deploySoFilesToApp(String packageName) {
         AppConfig appConfig = config.perAppConfig.get(packageName);
@@ -384,6 +402,7 @@ public class ConfigManager {
     public static class AppConfig {
         public boolean enabled = false;
         public List<SoFile> soFiles = new ArrayList<>();
+        public String injectionMethod = "standard"; // "standard", "riru" or "custom_linker"
     }
     
     public static class SoFile {

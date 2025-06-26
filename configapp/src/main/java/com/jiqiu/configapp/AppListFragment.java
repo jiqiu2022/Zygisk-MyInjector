@@ -13,6 +13,8 @@ import android.widget.ProgressBar;
 import android.app.Dialog;
 import android.widget.CheckBox;
 import android.widget.ImageView;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -134,15 +136,24 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         TextView packageName = dialogView.findViewById(R.id.packageName);
         RecyclerView soListRecyclerView = dialogView.findViewById(R.id.soListRecyclerView);
         TextView emptyText = dialogView.findViewById(R.id.emptyText);
-        SwitchMaterial switchHideInjection = dialogView.findViewById(R.id.switchHideInjection);
+        RadioGroup injectionMethodGroup = dialogView.findViewById(R.id.injectionMethodGroup);
+        RadioButton radioStandardInjection = dialogView.findViewById(R.id.radioStandardInjection);
+        RadioButton radioRiruInjection = dialogView.findViewById(R.id.radioRiruInjection);
+        RadioButton radioCustomLinkerInjection = dialogView.findViewById(R.id.radioCustomLinkerInjection);
         
         appIcon.setImageDrawable(appInfo.getAppIcon());
         appName.setText(appInfo.getAppName());
         packageName.setText(appInfo.getPackageName());
         
         // Load current config
-        boolean hideInjection = configManager.getHideInjection();
-        switchHideInjection.setChecked(hideInjection);
+        String injectionMethod = configManager.getAppInjectionMethod(appInfo.getPackageName());
+        if ("custom_linker".equals(injectionMethod)) {
+            radioCustomLinkerInjection.setChecked(true);
+        } else if ("riru".equals(injectionMethod)) {
+            radioRiruInjection.setChecked(true);
+        } else {
+            radioStandardInjection.setChecked(true);
+        }
         
         // Setup SO list
         List<ConfigManager.SoFile> globalSoFiles = configManager.getAllSoFiles();
@@ -165,8 +176,16 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
                 .setTitle("配置注入")
                 .setView(dialogView)
                 .setPositiveButton("保存", (dialog, which) -> {
-                    // Save hide injection setting
-                    configManager.setHideInjection(switchHideInjection.isChecked());
+                    // Save injection method
+                    String selectedMethod;
+                    if (radioCustomLinkerInjection.isChecked()) {
+                        selectedMethod = "custom_linker";
+                    } else if (radioRiruInjection.isChecked()) {
+                        selectedMethod = "riru";
+                    } else {
+                        selectedMethod = "standard";
+                    }
+                    configManager.setAppInjectionMethod(appInfo.getPackageName(), selectedMethod);
                     
                     // Save SO selection
                     if (soListRecyclerView.getAdapter() != null) {
