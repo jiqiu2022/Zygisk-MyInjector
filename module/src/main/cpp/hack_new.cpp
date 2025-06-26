@@ -15,17 +15,9 @@
 extern "C" void riru_hide(const char *name);
 
 void load_so_file_standard(const char *game_data_dir, const Config::SoFile &soFile) {
-    // Extract the mapped filename from storedPath (e.g., "1750851324251_libmylib.so")
-    const char *mapped_name = strrchr(soFile.storedPath.c_str(), '/');
-    if (!mapped_name) {
-        mapped_name = soFile.storedPath.c_str();
-    } else {
-        mapped_name++; // Skip the '/'
-    }
-    
-    // The file should already be in app's files directory
+    // Use original filename
     char so_path[512];
-    snprintf(so_path, sizeof(so_path), "%s/files/%s", game_data_dir, mapped_name);
+    snprintf(so_path, sizeof(so_path), "%s/files/%s", game_data_dir, soFile.name.c_str());
     
     // Check if file exists
     if (access(so_path, F_OK) != 0) {
@@ -36,24 +28,16 @@ void load_so_file_standard(const char *game_data_dir, const Config::SoFile &soFi
     // Load the SO file using standard dlopen (no hiding)
     void *handle = dlopen(so_path, RTLD_NOW | RTLD_LOCAL);
     if (handle) {
-        LOGI("Successfully loaded SO via standard dlopen: %s (mapped: %s)", soFile.name.c_str(), mapped_name);
+        LOGI("Successfully loaded SO via standard dlopen: %s", soFile.name.c_str());
     } else {
         LOGE("Failed to load SO via standard dlopen: %s - %s", so_path, dlerror());
     }
 }
 
 void load_so_file_riru(const char *game_data_dir, const Config::SoFile &soFile) {
-    // Extract the mapped filename from storedPath (e.g., "1750851324251_libmylib.so")
-    const char *mapped_name = strrchr(soFile.storedPath.c_str(), '/');
-    if (!mapped_name) {
-        mapped_name = soFile.storedPath.c_str();
-    } else {
-        mapped_name++; // Skip the '/'
-    }
-    
-    // The file should already be in app's files directory
+    // Use original filename
     char so_path[512];
-    snprintf(so_path, sizeof(so_path), "%s/files/%s", game_data_dir, mapped_name);
+    snprintf(so_path, sizeof(so_path), "%s/files/%s", game_data_dir, soFile.name.c_str());
     
     // Check if file exists
     if (access(so_path, F_OK) != 0) {
@@ -64,13 +48,13 @@ void load_so_file_riru(const char *game_data_dir, const Config::SoFile &soFile) 
     // Load the SO file using dlopen (Riru method)
     void *handle = dlopen(so_path, RTLD_NOW | RTLD_LOCAL);
     if (handle) {
-        LOGI("Successfully loaded SO via Riru: %s (mapped: %s)", soFile.name.c_str(), mapped_name);
+        LOGI("Successfully loaded SO via Riru: %s", soFile.name.c_str());
         
         // Hide if configured
         if (Config::shouldHideInjection()) {
-            // Hide using the mapped name since that's what we loaded
-            riru_hide(mapped_name);
-            LOGI("Applied riru_hide to: %s", mapped_name);
+            // Hide using the original name
+            riru_hide(soFile.name.c_str());
+            LOGI("Applied riru_hide to: %s", soFile.name.c_str());
         }
     } else {
         LOGE("Failed to load SO via Riru: %s - %s", so_path, dlerror());
@@ -78,17 +62,9 @@ void load_so_file_riru(const char *game_data_dir, const Config::SoFile &soFile) 
 }
 
 void load_so_file_custom_linker(const char *game_data_dir, const Config::SoFile &soFile, JavaVM *vm) {
-    // Extract the mapped filename from storedPath
-    const char *mapped_name = strrchr(soFile.storedPath.c_str(), '/');
-    if (!mapped_name) {
-        mapped_name = soFile.storedPath.c_str();
-    } else {
-        mapped_name++; // Skip the '/'
-    }
-    
-    // The file should already be in app's files directory
+    // Use original filename
     char so_path[512];
-    snprintf(so_path, sizeof(so_path), "%s/files/%s", game_data_dir, mapped_name);
+    snprintf(so_path, sizeof(so_path), "%s/files/%s", game_data_dir, soFile.name.c_str());
     
     // Check if file exists
     if (access(so_path, F_OK) != 0) {
@@ -98,7 +74,7 @@ void load_so_file_custom_linker(const char *game_data_dir, const Config::SoFile 
     
     // Load the SO file using custom linker
     if (mylinker_load_library(so_path, vm)) {
-        LOGI("Successfully loaded SO via custom linker: %s (mapped: %s)", soFile.name.c_str(), mapped_name);
+        LOGI("Successfully loaded SO via custom linker: %s", soFile.name.c_str());
         
         // Custom linker doesn't appear in maps, so no need to hide
         if (Config::shouldHideInjection()) {
