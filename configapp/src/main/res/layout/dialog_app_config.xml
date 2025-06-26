@@ -77,20 +77,66 @@
         android:textColor="?android:attr/textColorTertiary"
         android:visibility="gone" />
 
-    <com.google.android.material.switchmaterial.SwitchMaterial
-        android:id="@+id/switchHideInjection"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="隐藏注入"
-        android:layout_marginTop="8dp" />
-
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="使用Riru Hide隐藏注入的SO文件"
-        android:textSize="12sp"
+        android:text="注入方式"
+        android:textSize="14sp"
         android:textColor="?android:attr/textColorSecondary"
-        android:layout_marginStart="56dp"
-        android:layout_marginTop="4dp" />
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp" />
+
+    <RadioGroup
+        android:id="@+id/injectionMethodGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/radioStandardInjection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="标准注入"
+            android:checked="true" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginBottom="8dp"
+            android:text="使用标准dlopen方式注入"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="12sp" />
+
+        <RadioButton
+            android:id="@+id/radioRiruInjection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Riru注入" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="使用Riru Hide隐藏注入的SO文件"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginStart="32dp"
+            android:layout_marginBottom="8dp" />
+
+        <RadioButton
+            android:id="@+id/radioCustomLinkerInjection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="自定义Linker注入" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="使用自定义ELF加载器进行注入"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginStart="32dp" />
+
+    </RadioGroup>
 
 </LinearLayout>

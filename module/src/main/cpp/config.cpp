@@ -43,6 +43,16 @@ namespace Config {
         std::string enabledStr = extractValue(appJson, "enabled");
         appConfig.enabled = (enabledStr == "true");
         
+        // Parse injection method
+        std::string methodStr = extractValue(appJson, "injectionMethod");
+        if (methodStr == "2" || methodStr == "custom_linker") {
+            appConfig.injectionMethod = InjectionMethod::CUSTOM_LINKER;
+        } else if (methodStr == "1" || methodStr == "riru") {
+            appConfig.injectionMethod = InjectionMethod::RIRU;
+        } else {
+            appConfig.injectionMethod = InjectionMethod::STANDARD;
+        }
+        
         // Parse soFiles array
         size_t soFilesPos = appJson.find("\"soFiles\"");
         if (soFilesPos != std::string::npos) {
@@ -76,8 +86,10 @@ namespace Config {
         }
         
         g_config.perAppConfig[packageName] = appConfig;
-        LOGD("Loaded config for app: %s, enabled: %d, SO files: %zu", 
-             packageName.c_str(), appConfig.enabled, appConfig.soFiles.size());
+        const char* methodName = appConfig.injectionMethod == InjectionMethod::CUSTOM_LINKER ? "custom_linker" :
+                                 appConfig.injectionMethod == InjectionMethod::RIRU ? "riru" : "standard";
+        LOGD("Loaded config for app: %s, enabled: %d, method: %s, SO files: %zu", 
+             packageName.c_str(), appConfig.enabled, methodName, appConfig.soFiles.size());
     }
     
     ModuleConfig readConfig() {
@@ -187,5 +199,17 @@ namespace Config {
             readConfig();
         }
         return g_config.hideInjection;
+    }
+    
+    InjectionMethod getAppInjectionMethod(const std::string& packageName) {
+        if (!g_configLoaded) {
+            readConfig();
+        }
+        
+        auto it = g_config.perAppConfig.find(packageName);
+        if (it != g_config.perAppConfig.end()) {
+            return it->second.injectionMethod;
+        }
+        return InjectionMethod::STANDARD;
     }
 }
