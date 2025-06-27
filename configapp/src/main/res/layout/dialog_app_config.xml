@@ -88,35 +88,67 @@
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp" />
 
-    <LinearLayout
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gadget 配置"
+        android:textSize="14sp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:layout_marginBottom="8dp" />
+
+    <RadioGroup
+        android:id="@+id/gadgetConfigGroup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:orientation="vertical"
         android:layout_marginBottom="8dp">
 
-        <CheckBox
-            android:id="@+id/checkboxEnableGadget"
+        <RadioButton
+            android:id="@+id/radioNoGadget"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="不使用Gadget"
+            android:checked="true" />
+
+        <RadioButton
+            android:id="@+id/radioUseGlobalGadget"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="使用全局Gadget配置" />
+
+        <TextView
+            android:id="@+id/tvGlobalGadgetInfo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="启用 Gadget 配置"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginStart="32dp"
+            android:layout_marginBottom="4dp"
+            android:text="未配置全局Gadget"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="12sp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnConfigureGadget"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="配置"
-            android:textSize="12sp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:enabled="false" />
+        <RadioButton
+            android:id="@+id/radioUseCustomGadget"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="自定义Gadget配置" />
 
-    </LinearLayout>
+    </RadioGroup>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnConfigureGadget"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="配置Gadget"
+        android:textSize="14sp"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:enabled="false"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Gadget可用于Frida调试，勾选后可配置监听地址和端口"
+        android:text="Gadget可用于Frida调试，可配置监听地址和端口"
         android:textSize="12sp"
         android:textColor="?android:attr/textColorSecondary"
         android:layout_marginBottom="16dp" />

@@ -57,6 +57,7 @@ public class GadgetConfigDialog extends DialogFragment {
     // Configuration data
     private ConfigManager.GadgetConfig config;
     private OnGadgetConfigListener listener;
+    private String customTitle;
     
     // Flag to prevent recursive updates
     private boolean isUpdatingUI = false;
@@ -73,6 +74,21 @@ public class GadgetConfigDialog extends DialogFragment {
         GadgetConfigDialog dialog = new GadgetConfigDialog();
         dialog.config = config != null ? config : new ConfigManager.GadgetConfig();
         return dialog;
+    }
+    
+    // Constructor for non-fragment usage
+    public GadgetConfigDialog(Context context, String title, ConfigManager.GadgetConfig config, OnGadgetConfigListener listener) {
+        // This constructor is for compatibility with direct dialog creation
+        // The actual dialog will be created in show() method
+        this.savedContext = context;
+        this.customTitle = title;
+        this.config = config != null ? config : new ConfigManager.GadgetConfig();
+        this.listener = listener;
+    }
+    
+    // Default constructor required for DialogFragment
+    public GadgetConfigDialog() {
+        // Empty constructor required
     }
     
     public void setOnGadgetConfigListener(OnGadgetConfigListener listener) {
@@ -129,8 +145,10 @@ public class GadgetConfigDialog extends DialogFragment {
         setupListeners();
         updateJsonPreview();
         
+        String title = customTitle != null ? customTitle : "Gadget 配置";
+        
         return new MaterialAlertDialogBuilder(getContext())
-                .setTitle("Gadget 配置")
+                .setTitle(title)
                 .setView(view)
                 .setPositiveButton("保存", (dialog, which) -> saveConfig())
                 .setNegativeButton("取消", null)
@@ -565,6 +583,50 @@ public class GadgetConfigDialog extends DialogFragment {
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+    
+    // Show method for non-fragment usage
+    public void show() {
+        if (getContext() == null) {
+            throw new IllegalStateException("Context is required for non-fragment usage");
+        }
+        
+        View view = LayoutInflater.from(getContext()).inflate(R.layout.dialog_gadget_config, null);
+        initViews(view);
+        
+        // Initialize config if null
+        if (config == null) {
+            config = new ConfigManager.GadgetConfig();
+        }
+        
+        loadConfig();
+        setupListeners();
+        updateJsonPreview();
+        
+        String title = customTitle != null ? customTitle : "Gadget 配置";
+        
+        new MaterialAlertDialogBuilder(getContext())
+                .setTitle(title)
+                .setView(view)
+                .setPositiveButton("保存", (dialog, which) -> saveConfig())
+                .setNegativeButton("取消", null)
+                .show();
+    }
+    
+    private Context savedContext;
+    
+    @Override
+    public Context getContext() {
+        Context context = super.getContext();
+        if (context == null) {
+            return savedContext;
+        }
+        return context;
+    }
+    
+    // Constructor for non-fragment usage needs to save context
+    public void setContext(Context context) {
+        this.savedContext = context;
     }
     
     private String getPathFromUri(Uri uri) {
