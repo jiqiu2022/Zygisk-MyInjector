@@ -16,10 +16,10 @@
 版本规划:
 - **v1.x**：专注功能添加，暂不考虑反检测
 - **v2.x**：实现各种检测绕过，达到100%无痕注入
-更新记录
+更新记录:
 - **v1.2**: 增加gadget配置的自动生成，支持脚本和server模式，解决了若干bug，增加了全局注入延迟设置
-## 致谢
 
+## 致谢
 **项目地址**：[https://github.com/jiqiu2022/Zygisk-MyInjector](https://github.com/jiqiu2022/Zygisk-MyInjector)
 
 特别感谢以下项目和开发者（按时间顺序）：
