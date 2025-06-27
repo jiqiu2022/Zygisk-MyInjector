@@ -196,6 +196,12 @@ public class SoManagerFragment extends Fragment {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
         intent.addCategory(Intent.CATEGORY_OPENABLE);
+        // Add MIME types that might help filter SO files
+        String[] mimeTypes = {"application/octet-stream", "application/x-sharedlib", "*/*"};
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        // Suggest starting location
+        intent.putExtra("android.provider.extra.INITIAL_URI", 
+            android.net.Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload"));
         filePickerLauncher.launch(intent);
     }
     
@@ -219,14 +225,12 @@ public class SoManagerFragment extends Fragment {
     }
     
     private void handleFileSelection(Uri uri) {
-        // Get real path from URI
-        String path = uri.getPath();
+        // Get real path from URI using proper URI handling
+        String path = FileUtils.getRealPathFromUri(requireContext(), uri);
         if (path != null) {
-            // Remove the file:// prefix if present
-            if (path.startsWith("file://")) {
-                path = path.substring(7);
-            }
             showDeleteOriginalDialog(path);
+        } else {
+            Toast.makeText(getContext(), "无法获取文件路径，请尝试其他方式", Toast.LENGTH_SHORT).show();
         }
     }
     
