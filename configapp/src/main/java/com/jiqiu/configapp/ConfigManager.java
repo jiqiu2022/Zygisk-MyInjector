@@ -332,21 +332,34 @@ public class ConfigManager {
     private void deployGadgetConfigFile(String packageName, GadgetConfig gadgetConfig) {
         try {
             // Create gadget config JSON
-            String configJson = String.format(
-                "{\n" +
-                "  \"interaction\": {\n" +
-                "    \"type\": \"listen\",\n" +
-                "    \"address\": \"%s\",\n" +
-                "    \"port\": %d,\n" +
-                "    \"on_port_conflict\": \"%s\",\n" +
-                "    \"on_load\": \"%s\"\n" +
-                "  }\n" +
-                "}",
-                gadgetConfig.address,
-                gadgetConfig.port,
-                gadgetConfig.onPortConflict,
-                gadgetConfig.onLoad
-            );
+            String configJson;
+            if ("script".equals(gadgetConfig.mode)) {
+                configJson = String.format(
+                    "{\n" +
+                    "  \"interaction\": {\n" +
+                    "    \"type\": \"script\",\n" +
+                    "    \"path\": \"%s\"\n" +
+                    "  }\n" +
+                    "}",
+                    gadgetConfig.scriptPath
+                );
+            } else {
+                configJson = String.format(
+                    "{\n" +
+                    "  \"interaction\": {\n" +
+                    "    \"type\": \"listen\",\n" +
+                    "    \"address\": \"%s\",\n" +
+                    "    \"port\": %d,\n" +
+                    "    \"on_port_conflict\": \"%s\",\n" +
+                    "    \"on_load\": \"%s\"\n" +
+                    "  }\n" +
+                    "}",
+                    gadgetConfig.address,
+                    gadgetConfig.port,
+                    gadgetConfig.onPortConflict,
+                    gadgetConfig.onLoad
+                );
+            }
             
             // Write to temp file
             String tempFile = context.getCacheDir() + "/" + gadgetConfig.gadgetName + ".config";
@@ -573,10 +586,15 @@ public class ConfigManager {
     }
     
     public static class GadgetConfig {
+        public String mode = "server"; // "server" or "script"
+        // Server mode config
         public String address = "0.0.0.0";
         public int port = 27042;
         public String onPortConflict = "fail";
         public String onLoad = "wait";
+        // Script mode config
+        public String scriptPath = "/data/local/tmp/script.js";
+        // Common config
         public String gadgetName = "libgadget.so";
     }
 }
