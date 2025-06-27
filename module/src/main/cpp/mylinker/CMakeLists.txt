@@ -17,8 +17,8 @@ set(SOURCES
 
 find_library(log-lib log)
 
-# Build as shared library
-add_library(mylinker SHARED ${SOURCES})
+# Build as static library to be linked into main module
+add_library(mylinker STATIC ${SOURCES})
 
 target_link_libraries(mylinker ${log-lib})
 
