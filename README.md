@@ -12,11 +12,12 @@
 
 项目已完全开源，包含面具模块、管理APP以及所有打包脚本，并配置了GitHub CI自动构建。欢迎各位开发者贡献代码，提交PR。
 
-### 版本规划
-
+### 版本规划&更新记录
+版本规划:
 - **v1.x**：专注功能添加，暂不考虑反检测
 - **v2.x**：实现各种检测绕过，达到100%无痕注入
-
+更新记录
+- **v1.2**: 增加gadget配置的自动生成，支持脚本和server模式，解决了若干bug，增加了全局注入延迟设置
 ## 致谢
 
 **项目地址**：[https://github.com/jiqiu2022/Zygisk-MyInjector](https://github.com/jiqiu2022/Zygisk-MyInjector)
