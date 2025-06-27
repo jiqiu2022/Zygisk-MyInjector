@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Gadget 配置"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="提示：请确保对应的 gadget SO 文件已添加到 SO 库中"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 模式选择 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Gadget 模式"
+            android:textSize="14sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <RadioGroup
+            android:id="@+id/modeRadioGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <RadioButton
+                android:id="@+id/radioModeServer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Server 模式"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/radioModeScript"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Script 模式" />
+
+        </RadioGroup>
+
+        <!-- Server 模式配置区域 -->
+        <LinearLayout
+            android:id="@+id/serverModeLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+        <!-- 监听地址配置 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="监听地址"
+            android:textSize="14sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <RadioGroup
+            android:id="@+id/addressRadioGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="8dp">
+
+            <RadioButton
+                android:id="@+id/radioAddressAll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="0.0.0.0 (监听所有接口)"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/radioAddressLocal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="127.0.0.1 (仅本地)" />
+
+            <RadioButton
+                android:id="@+id/radioAddressCustom"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="自定义" />
+
+        </RadioGroup>
+
+        <EditText
+            android:id="@+id/editCustomAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="输入自定义地址"
+            android:inputType="text"
+            android:enabled="false"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 端口配置 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="监听端口"
+            android:textSize="14sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/editPort"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="number"
+            android:text="27042"
+            android:hint="1-65535"
+            android:layout_marginBottom="16dp" />
+
+        <!-- 端口冲突处理 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="端口冲突处理"
+            android:textSize="14sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <RadioGroup
+            android:id="@+id/portConflictRadioGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <RadioButton
+                android:id="@+id/radioConflictFail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="fail (启动失败)"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/radioConflictPickNext"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="pick-next (尝试下一个端口)" />
+
+        </RadioGroup>
+
+        <!-- 加载处理方式 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="加载时处理方式"
+            android:textSize="14sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <RadioGroup
+            android:id="@+id/onLoadRadioGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp">
+
+            <RadioButton
+                android:id="@+id/radioLoadWait"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="wait (等待连接)"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/radioLoadResume"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="resume (立即继续)" />
+
+        </RadioGroup>
+
+        </LinearLayout>
+
+        <!-- Script 模式配置区域 -->
+        <LinearLayout
+            android:id="@+id/scriptModeLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Script 文件路径"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+
+                <EditText
+                    android:id="@+id/editScriptPath"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="/data/local/tmp/script.js"
+                    android:inputType="text"
+                    android:layout_marginEnd="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSelectScript"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="选择"
+                    android:textSize="12sp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="提示：Script 模式下，Gadget 会在程序入口点执行前自动加载并运行指定的脚本文件"
+                android:textSize="12sp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:layout_marginBottom="16dp" />
+
+        </LinearLayout>
+
+        <!-- Gadget 名称 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Gadget 文件名"
+            android:textSize="14sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/editGadgetName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="libgadget.so"
+            android:hint="例如: libgadget.so"
+            android:layout_marginBottom="16dp" />
+
+        <!-- JSON 预览区域 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="配置预览 (可直接编辑)"
+            android:textSize="14sp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="4dp">
+
+            <EditText
+                android:id="@+id/editJsonPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="150dp"
+                android:gravity="top"
+                android:padding="12dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:fontFamily="monospace"
+                android:textSize="12sp"
+                android:inputType="textMultiLine"
+                android:scrollbars="vertical"
+                android:overScrollMode="always" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+</ScrollView>

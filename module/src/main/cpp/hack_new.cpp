@@ -88,8 +88,12 @@ void load_so_file_custom_linker(const char *game_data_dir, const Config::SoFile 
 void hack_thread_func(const char *game_data_dir, const char *package_name, JavaVM *vm) {
     LOGI("Hack thread started for package: %s", package_name);
     
-    // Wait a bit for app to initialize and files to be copied
-    sleep(2);
+    // Get injection delay from config
+    int delay = Config::getInjectionDelay();
+    LOGI("Waiting %d seconds before injection", delay);
+    
+    // Wait for app to initialize and files to be copied
+    sleep(delay);
     
     // Get injection method for this app
     Config::InjectionMethod method = Config::getAppInjectionMethod(package_name);
@@ -103,6 +107,12 @@ void hack_thread_func(const char *game_data_dir, const char *package_name, JavaV
     
     // Load each SO file using the configured method
     for (const auto &soFile : soFiles) {
+        // Skip config files
+        if (soFile.name.find(".config.so") != std::string::npos) {
+            LOGI("Skipping config file: %s", soFile.name.c_str());
+            continue;
+        }
+        
         LOGI("Loading SO: %s (stored as: %s)", soFile.name.c_str(), soFile.storedPath.c_str());
         
         if (method == Config::InjectionMethod::CUSTOM_LINKER) {

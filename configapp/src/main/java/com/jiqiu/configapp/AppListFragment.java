@@ -140,6 +140,8 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         RadioButton radioStandardInjection = dialogView.findViewById(R.id.radioStandardInjection);
         RadioButton radioRiruInjection = dialogView.findViewById(R.id.radioRiruInjection);
         RadioButton radioCustomLinkerInjection = dialogView.findViewById(R.id.radioCustomLinkerInjection);
+        CheckBox checkboxEnableGadget = dialogView.findViewById(R.id.checkboxEnableGadget);
+        com.google.android.material.button.MaterialButton btnConfigureGadget = dialogView.findViewById(R.id.btnConfigureGadget);
         
         appIcon.setImageDrawable(appInfo.getAppIcon());
         appName.setText(appInfo.getAppName());
@@ -154,6 +156,33 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         } else {
             radioStandardInjection.setChecked(true);
         }
+        
+        // Load gadget config
+        ConfigManager.GadgetConfig gadgetConfig = configManager.getAppGadgetConfig(appInfo.getPackageName());
+        checkboxEnableGadget.setChecked(gadgetConfig != null);
+        btnConfigureGadget.setEnabled(gadgetConfig != null);
+        
+        // Setup gadget listeners
+        checkboxEnableGadget.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            btnConfigureGadget.setEnabled(isChecked);
+            if (!isChecked) {
+                // Remove gadget config when unchecked
+                configManager.setAppGadgetConfig(appInfo.getPackageName(), null);
+            }
+        });
+        
+        btnConfigureGadget.setOnClickListener(v -> {
+            ConfigManager.GadgetConfig currentConfig = configManager.getAppGadgetConfig(appInfo.getPackageName());
+            if (currentConfig == null) {
+                currentConfig = new ConfigManager.GadgetConfig();
+            }
+            
+            GadgetConfigDialog gadgetDialog = GadgetConfigDialog.newInstance(currentConfig);
+            gadgetDialog.setOnGadgetConfigListener(config -> {
+                configManager.setAppGadgetConfig(appInfo.getPackageName(), config);
+            });
+            gadgetDialog.show(getParentFragmentManager(), "gadget_config");
+        });
         
         // Setup SO list
         List<ConfigManager.SoFile> globalSoFiles = configManager.getAllSoFiles();
@@ -186,6 +215,16 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
                         selectedMethod = "standard";
                     }
                     configManager.setAppInjectionMethod(appInfo.getPackageName(), selectedMethod);
+                    
+                    // Save gadget config if enabled
+                    if (checkboxEnableGadget.isChecked()) {
+                        ConfigManager.GadgetConfig currentGadgetConfig = configManager.getAppGadgetConfig(appInfo.getPackageName());
+                        if (currentGadgetConfig == null) {
+                            // Create default config if not already configured
+                            currentGadgetConfig = new ConfigManager.GadgetConfig();
+                            configManager.setAppGadgetConfig(appInfo.getPackageName(), currentGadgetConfig);
+                        }
+                    }
                     
                     // Save SO selection
                     if (soListRecyclerView.getAdapter() != null) {
