@@ -11,6 +11,8 @@ import android.widget.RadioGroup;
 import android.widget.EditText;
 import android.text.TextWatcher;
 import android.text.Editable;
+import android.widget.TextView;
+import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -28,6 +30,8 @@ public class SettingsFragment extends Fragment {
     private RadioButton radioShowAll;
     private RadioButton radioHideSystem;
     private EditText editInjectionDelay;
+    private TextView tvGlobalGadgetStatus;
+    private Button btnConfigureGlobalGadget;
     private ConfigManager configManager;
     
     private SharedPreferences sharedPreferences;
@@ -59,6 +63,8 @@ public class SettingsFragment extends Fragment {
         radioShowAll = view.findViewById(R.id.radio_show_all);
         radioHideSystem = view.findViewById(R.id.radio_hide_system);
         editInjectionDelay = view.findViewById(R.id.editInjectionDelay);
+        tvGlobalGadgetStatus = view.findViewById(R.id.tvGlobalGadgetStatus);
+        btnConfigureGlobalGadget = view.findViewById(R.id.btnConfigureGlobalGadget);
         
         configManager = new ConfigManager(getContext());
     }
@@ -79,6 +85,9 @@ public class SettingsFragment extends Fragment {
         // Load injection delay
         int injectionDelay = configManager.getInjectionDelay();
         editInjectionDelay.setText(String.valueOf(injectionDelay));
+        
+        // Load global gadget status
+        updateGlobalGadgetStatus();
     }
     
     private void setupListeners() {
@@ -124,6 +133,11 @@ public class SettingsFragment extends Fragment {
                 }
             }
         });
+        
+        // Global gadget configuration button
+        btnConfigureGlobalGadget.setOnClickListener(v -> {
+            showGlobalGadgetConfigDialog();
+        });
     }
     
     public void setOnSettingsChangeListener(OnSettingsChangeListener listener) {
@@ -132,5 +146,35 @@ public class SettingsFragment extends Fragment {
     
     public boolean isHideSystemApps() {
         return sharedPreferences.getBoolean(KEY_HIDE_SYSTEM_APPS, false);
+    }
+    
+    private void updateGlobalGadgetStatus() {
+        ConfigManager.GadgetConfig globalGadget = configManager.getGlobalGadgetConfig();
+        if (globalGadget != null) {
+            String status = "已配置: " + globalGadget.gadgetName;
+            if (globalGadget.mode.equals("server")) {
+                status += " (Server模式, 端口: " + globalGadget.port + ")";
+            } else {
+                status += " (Script模式)";
+            }
+            tvGlobalGadgetStatus.setText(status);
+        } else {
+            tvGlobalGadgetStatus.setText("未配置");
+        }
+    }
+    
+    private void showGlobalGadgetConfigDialog() {
+        // Use existing GadgetConfigDialog
+        GadgetConfigDialog dialog = new GadgetConfigDialog(
+            getContext(),
+            "全局Gadget配置",
+            configManager.getGlobalGadgetConfig(),
+            gadgetConfig -> {
+                // Save global gadget configuration
+                configManager.setGlobalGadgetConfig(gadgetConfig);
+                updateGlobalGadgetStatus();
+            }
+        );
+        dialog.show();
     }
 }

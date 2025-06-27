@@ -140,7 +140,11 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         RadioButton radioStandardInjection = dialogView.findViewById(R.id.radioStandardInjection);
         RadioButton radioRiruInjection = dialogView.findViewById(R.id.radioRiruInjection);
         RadioButton radioCustomLinkerInjection = dialogView.findViewById(R.id.radioCustomLinkerInjection);
-        CheckBox checkboxEnableGadget = dialogView.findViewById(R.id.checkboxEnableGadget);
+        RadioGroup gadgetConfigGroup = dialogView.findViewById(R.id.gadgetConfigGroup);
+        RadioButton radioNoGadget = dialogView.findViewById(R.id.radioNoGadget);
+        RadioButton radioUseGlobalGadget = dialogView.findViewById(R.id.radioUseGlobalGadget);
+        RadioButton radioUseCustomGadget = dialogView.findViewById(R.id.radioUseCustomGadget);
+        TextView tvGlobalGadgetInfo = dialogView.findViewById(R.id.tvGlobalGadgetInfo);
         com.google.android.material.button.MaterialButton btnConfigureGadget = dialogView.findViewById(R.id.btnConfigureGadget);
         
         appIcon.setImageDrawable(appInfo.getAppIcon());
@@ -158,30 +162,71 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         }
         
         // Load gadget config
-        ConfigManager.GadgetConfig gadgetConfig = configManager.getAppGadgetConfig(appInfo.getPackageName());
-        checkboxEnableGadget.setChecked(gadgetConfig != null);
-        btnConfigureGadget.setEnabled(gadgetConfig != null);
+        boolean useGlobalGadget = configManager.getAppUseGlobalGadget(appInfo.getPackageName());
+        ConfigManager.GadgetConfig appSpecificGadget = configManager.getAppGadgetConfig(appInfo.getPackageName());
+        ConfigManager.GadgetConfig globalGadget = configManager.getGlobalGadgetConfig();
         
-        // Setup gadget listeners
-        checkboxEnableGadget.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            btnConfigureGadget.setEnabled(isChecked);
-            if (!isChecked) {
-                // Remove gadget config when unchecked
+        // Update global gadget info
+        if (globalGadget != null) {
+            String info = "全局: " + globalGadget.gadgetName;
+            if (globalGadget.mode.equals("server")) {
+                info += " (端口: " + globalGadget.port + ")";
+            }
+            tvGlobalGadgetInfo.setText(info);
+        } else {
+            tvGlobalGadgetInfo.setText("未配置全局Gadget");
+        }
+        
+        // Set initial radio selection
+        if (!useGlobalGadget && appSpecificGadget != null) {
+            radioUseCustomGadget.setChecked(true);
+            btnConfigureGadget.setVisibility(View.VISIBLE);
+            btnConfigureGadget.setEnabled(true);
+        } else if (useGlobalGadget && globalGadget != null) {
+            radioUseGlobalGadget.setChecked(true);
+            btnConfigureGadget.setVisibility(View.GONE);
+        } else {
+            radioNoGadget.setChecked(true);
+            btnConfigureGadget.setVisibility(View.GONE);
+        }
+        
+        // Setup gadget radio group listener
+        gadgetConfigGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.radioNoGadget) {
+                btnConfigureGadget.setVisibility(View.GONE);
+                configManager.setAppUseGlobalGadget(appInfo.getPackageName(), false);
                 configManager.setAppGadgetConfig(appInfo.getPackageName(), null);
+            } else if (checkedId == R.id.radioUseGlobalGadget) {
+                btnConfigureGadget.setVisibility(View.GONE);
+                configManager.setAppUseGlobalGadget(appInfo.getPackageName(), true);
+                configManager.setAppGadgetConfig(appInfo.getPackageName(), null);
+            } else if (checkedId == R.id.radioUseCustomGadget) {
+                btnConfigureGadget.setVisibility(View.VISIBLE);
+                btnConfigureGadget.setEnabled(true);
+                configManager.setAppUseGlobalGadget(appInfo.getPackageName(), false);
             }
         });
         
+        // Configure button listener
         btnConfigureGadget.setOnClickListener(v -> {
-            ConfigManager.GadgetConfig currentConfig = configManager.getAppGadgetConfig(appInfo.getPackageName());
+            ConfigManager.GadgetConfig currentConfig = null;
+            if (!useGlobalGadget) {
+                currentConfig = configManager.getAppGadgetConfig(appInfo.getPackageName());
+            }
             if (currentConfig == null) {
                 currentConfig = new ConfigManager.GadgetConfig();
             }
             
-            GadgetConfigDialog gadgetDialog = GadgetConfigDialog.newInstance(currentConfig);
-            gadgetDialog.setOnGadgetConfigListener(config -> {
-                configManager.setAppGadgetConfig(appInfo.getPackageName(), config);
-            });
-            gadgetDialog.show(getParentFragmentManager(), "gadget_config");
+            GadgetConfigDialog dialog = new GadgetConfigDialog(
+                getContext(),
+                "配置" + appInfo.getAppName() + "的Gadget",
+                currentConfig,
+                config -> {
+                    configManager.setAppUseGlobalGadget(appInfo.getPackageName(), false);
+                    configManager.setAppGadgetConfig(appInfo.getPackageName(), config);
+                }
+            );
+            dialog.show();
         });
         
         // Setup SO list
@@ -215,16 +260,6 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
                         selectedMethod = "standard";
                     }
                     configManager.setAppInjectionMethod(appInfo.getPackageName(), selectedMethod);
-                    
-                    // Save gadget config if enabled
-                    if (checkboxEnableGadget.isChecked()) {
-                        ConfigManager.GadgetConfig currentGadgetConfig = configManager.getAppGadgetConfig(appInfo.getPackageName());
-                        if (currentGadgetConfig == null) {
-                            // Create default config if not already configured
-                            currentGadgetConfig = new ConfigManager.GadgetConfig();
-                            configManager.setAppGadgetConfig(appInfo.getPackageName(), currentGadgetConfig);
-                        }
-                    }
                     
                     // Save SO selection
                     if (soListRecyclerView.getAdapter() != null) {

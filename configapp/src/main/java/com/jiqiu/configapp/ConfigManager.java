@@ -265,9 +265,44 @@ public class ConfigManager {
     public GadgetConfig getAppGadgetConfig(String packageName) {
         AppConfig appConfig = config.perAppConfig.get(packageName);
         if (appConfig == null) {
-            return null;
+            // If no app config, return global gadget config
+            return config.globalGadgetConfig;
         }
+        
+        // If app is set to use global gadget, return global config
+        if (appConfig.useGlobalGadget) {
+            return config.globalGadgetConfig;
+        }
+        
+        // Otherwise return app-specific gadget config
         return appConfig.gadgetConfig;
+    }
+    
+    public GadgetConfig getGlobalGadgetConfig() {
+        return config.globalGadgetConfig;
+    }
+    
+    public void setGlobalGadgetConfig(GadgetConfig gadgetConfig) {
+        config.globalGadgetConfig = gadgetConfig;
+        saveConfig();
+    }
+    
+    public boolean getAppUseGlobalGadget(String packageName) {
+        AppConfig appConfig = config.perAppConfig.get(packageName);
+        if (appConfig == null) {
+            return true; // Default to use global
+        }
+        return appConfig.useGlobalGadget;
+    }
+    
+    public void setAppUseGlobalGadget(String packageName, boolean useGlobal) {
+        AppConfig appConfig = config.perAppConfig.get(packageName);
+        if (appConfig == null) {
+            appConfig = new AppConfig();
+            config.perAppConfig.put(packageName, appConfig);
+        }
+        appConfig.useGlobalGadget = useGlobal;
+        saveConfig();
     }
     
     public void setAppGadgetConfig(String packageName, GadgetConfig gadgetConfig) {
@@ -478,8 +513,9 @@ public class ConfigManager {
         Log.i(TAG, "Deployment complete for: " + packageName);
         
         // Deploy gadget config if configured
-        if (appConfig.gadgetConfig != null) {
-            deployGadgetConfigFile(packageName, appConfig.gadgetConfig);
+        ConfigManager.GadgetConfig gadgetToUse = getAppGadgetConfig(packageName);
+        if (gadgetToUse != null) {
+            deployGadgetConfigFile(packageName, gadgetToUse);
         }
     }
     
@@ -527,8 +563,9 @@ public class ConfigManager {
         }
         
         // Clean up gadget config file if exists
-        if (appConfig.gadgetConfig != null) {
-            String gadgetConfigName = appConfig.gadgetConfig.gadgetName.replace(".so", ".config.so");
+        ConfigManager.GadgetConfig gadgetToUse = getAppGadgetConfig(packageName);
+        if (gadgetToUse != null) {
+            String gadgetConfigName = gadgetToUse.gadgetName.replace(".so", ".config.so");
             String configPath = filesDir + "/" + gadgetConfigName;
             
             Shell.Result checkConfigResult = Shell.cmd("test -f \"" + configPath + "\" && echo 'exists'").exec();
@@ -562,6 +599,7 @@ public class ConfigManager {
         public int injectionDelay = 2; // Default 2 seconds
         public List<SoFile> globalSoFiles = new ArrayList<>();
         public Map<String, AppConfig> perAppConfig = new HashMap<>();
+        public GadgetConfig globalGadgetConfig = null; // Global gadget configuration
     }
     
     public static class AppConfig {
@@ -569,6 +607,7 @@ public class ConfigManager {
         public List<SoFile> soFiles = new ArrayList<>();
         public String injectionMethod = "standard"; // "standard", "riru" or "custom_linker"
         public GadgetConfig gadgetConfig = null;
+        public boolean useGlobalGadget = true; // Whether to use global gadget settings
     }
     
     public static class SoFile {
