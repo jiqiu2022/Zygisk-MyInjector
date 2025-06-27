@@ -19,10 +19,19 @@ namespace Config {
         CUSTOM_LINKER = 2
     };
     
+    struct GadgetConfig {
+        std::string address = "0.0.0.0";
+        int port = 27042;
+        std::string onPortConflict = "fail";
+        std::string onLoad = "wait";
+        std::string gadgetName = "libgadget.so";
+    };
+    
     struct AppConfig {
         bool enabled = false;
         InjectionMethod injectionMethod = InjectionMethod::STANDARD;
         std::vector<SoFile> soFiles;
+        GadgetConfig* gadgetConfig = nullptr;
     };
     
     struct ModuleConfig {

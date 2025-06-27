@@ -92,11 +92,44 @@ namespace Config {
             }
         }
         
+        // Parse gadgetConfig if exists
+        size_t gadgetPos = appJson.find("\"gadgetConfig\"");
+        if (gadgetPos != std::string::npos) {
+            size_t gadgetObjStart = appJson.find("{", gadgetPos);
+            size_t gadgetObjEnd = appJson.find("}", gadgetObjStart);
+            
+            if (gadgetObjStart != std::string::npos && gadgetObjEnd != std::string::npos) {
+                std::string gadgetObj = appJson.substr(gadgetObjStart, gadgetObjEnd - gadgetObjStart + 1);
+                
+                GadgetConfig* gadgetConfig = new GadgetConfig();
+                
+                std::string address = extractValue(gadgetObj, "address");
+                if (!address.empty()) gadgetConfig->address = address;
+                
+                std::string portStr = extractValue(gadgetObj, "port");
+                if (!portStr.empty()) gadgetConfig->port = std::stoi(portStr);
+                
+                std::string onPortConflict = extractValue(gadgetObj, "onPortConflict");
+                if (!onPortConflict.empty()) gadgetConfig->onPortConflict = onPortConflict;
+                
+                std::string onLoad = extractValue(gadgetObj, "onLoad");
+                if (!onLoad.empty()) gadgetConfig->onLoad = onLoad;
+                
+                std::string gadgetName = extractValue(gadgetObj, "gadgetName");
+                if (!gadgetName.empty()) gadgetConfig->gadgetName = gadgetName;
+                
+                appConfig.gadgetConfig = gadgetConfig;
+                LOGD("Loaded gadget config: %s:%d, name: %s", 
+                     gadgetConfig->address.c_str(), gadgetConfig->port, gadgetConfig->gadgetName.c_str());
+            }
+        }
+        
         g_config.perAppConfig[packageName] = appConfig;
         const char* methodName = appConfig.injectionMethod == InjectionMethod::CUSTOM_LINKER ? "custom_linker" :
                                  appConfig.injectionMethod == InjectionMethod::RIRU ? "riru" : "standard";
-        LOGD("Loaded config for app: %s, enabled: %d, method: %s, SO files: %zu", 
-             packageName.c_str(), appConfig.enabled, methodName, appConfig.soFiles.size());
+        LOGD("Loaded config for app: %s, enabled: %d, method: %s, SO files: %zu, gadget: %s", 
+             packageName.c_str(), appConfig.enabled, methodName, appConfig.soFiles.size(),
+             appConfig.gadgetConfig ? "yes" : "no");
     }
     
     ModuleConfig readConfig() {

@@ -262,6 +262,119 @@ public class ConfigManager {
         saveConfig();
     }
     
+    public GadgetConfig getAppGadgetConfig(String packageName) {
+        AppConfig appConfig = config.perAppConfig.get(packageName);
+        if (appConfig == null) {
+            return null;
+        }
+        return appConfig.gadgetConfig;
+    }
+    
+    public void setAppGadgetConfig(String packageName, GadgetConfig gadgetConfig) {
+        AppConfig appConfig = config.perAppConfig.get(packageName);
+        if (appConfig == null) {
+            appConfig = new AppConfig();
+            config.perAppConfig.put(packageName, appConfig);
+        }
+        
+        // Remove old gadget from SO list if exists
+        if (appConfig.gadgetConfig != null) {
+            String oldGadgetName = appConfig.gadgetConfig.gadgetName;
+            appConfig.soFiles.removeIf(soFile -> soFile.name.equals(oldGadgetName));
+        }
+        
+        appConfig.gadgetConfig = gadgetConfig;
+        
+        // Add new gadget to SO list if configured
+        if (gadgetConfig != null) {
+            // Check if gadget SO file exists in global storage
+            String gadgetPath = SO_STORAGE_DIR + "/" + gadgetConfig.gadgetName;
+            Shell.Result checkResult = Shell.cmd("test -f \"" + gadgetPath + "\" && echo 'exists'").exec();
+            
+            if (checkResult.isSuccess() && !checkResult.getOut().isEmpty()) {
+                // Add gadget as a SO file
+                SoFile gadgetSoFile = new SoFile();
+                gadgetSoFile.name = gadgetConfig.gadgetName;
+                gadgetSoFile.storedPath = gadgetPath;
+                gadgetSoFile.originalPath = gadgetPath;
+                
+                // Check if already in list
+                boolean alreadyExists = false;
+                for (SoFile soFile : appConfig.soFiles) {
+                    if (soFile.name.equals(gadgetSoFile.name)) {
+                        alreadyExists = true;
+                        break;
+                    }
+                }
+                
+                if (!alreadyExists) {
+                    appConfig.soFiles.add(gadgetSoFile);
+                    Log.i(TAG, "Added gadget SO to app's SO list: " + gadgetSoFile.name);
+                }
+            } else {
+                Log.w(TAG, "Gadget SO file not found in storage: " + gadgetPath);
+                Log.w(TAG, "Please ensure " + gadgetConfig.gadgetName + " is added to SO library");
+            }
+        }
+        
+        saveConfig();
+        
+        // If app is enabled, deploy both gadget SO and config file
+        if (appConfig.enabled) {
+            if (gadgetConfig != null) {
+                deployGadgetConfigFile(packageName, gadgetConfig);
+            }
+            // Re-deploy all SO files including gadget
+            deploySoFilesToApp(packageName);
+        }
+    }
+    
+    private void deployGadgetConfigFile(String packageName, GadgetConfig gadgetConfig) {
+        try {
+            // Create gadget config JSON
+            String configJson = String.format(
+                "{\n" +
+                "  \"interaction\": {\n" +
+                "    \"type\": \"listen\",\n" +
+                "    \"address\": \"%s\",\n" +
+                "    \"port\": %d,\n" +
+                "    \"on_port_conflict\": \"%s\",\n" +
+                "    \"on_load\": \"%s\"\n" +
+                "  }\n" +
+                "}",
+                gadgetConfig.address,
+                gadgetConfig.port,
+                gadgetConfig.onPortConflict,
+                gadgetConfig.onLoad
+            );
+            
+            // Write to temp file
+            String tempFile = context.getCacheDir() + "/" + gadgetConfig.gadgetName + ".config";
+            java.io.FileWriter writer = new java.io.FileWriter(tempFile);
+            writer.write(configJson);
+            writer.close();
+            
+            // Copy to app's files directory
+            String filesDir = "/data/data/" + packageName + "/files";
+            String gadgetConfigName = gadgetConfig.gadgetName.replace(".so", ".config.so");
+            String targetPath = filesDir + "/" + gadgetConfigName;
+            
+            Shell.Result copyResult = Shell.cmd("cp " + tempFile + " " + targetPath).exec();
+            if (copyResult.isSuccess()) {
+                // Set permissions
+                Shell.cmd("chmod 644 " + targetPath).exec();
+                Log.i(TAG, "Deployed gadget config to: " + targetPath);
+            } else {
+                Log.e(TAG, "Failed to deploy gadget config: " + String.join("\n", copyResult.getErr()));
+            }
+            
+            // Clean up temp file
+            new java.io.File(tempFile).delete();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to create gadget config file", e);
+        }
+    }
+    
     // Copy SO files directly to app's data directory
     private void deploySoFilesToApp(String packageName) {
         AppConfig appConfig = config.perAppConfig.get(packageName);
@@ -350,6 +463,11 @@ public class ConfigManager {
         }
         
         Log.i(TAG, "Deployment complete for: " + packageName);
+        
+        // Deploy gadget config if configured
+        if (appConfig.gadgetConfig != null) {
+            deployGadgetConfigFile(packageName, appConfig.gadgetConfig);
+        }
     }
     
     // Clean up deployed SO files when app is disabled
@@ -395,6 +513,23 @@ public class ConfigManager {
             }
         }
         
+        // Clean up gadget config file if exists
+        if (appConfig.gadgetConfig != null) {
+            String gadgetConfigName = appConfig.gadgetConfig.gadgetName.replace(".so", ".config.so");
+            String configPath = filesDir + "/" + gadgetConfigName;
+            
+            Shell.Result checkConfigResult = Shell.cmd("test -f \"" + configPath + "\" && echo 'exists'").exec();
+            if (checkConfigResult.isSuccess() && !checkConfigResult.getOut().isEmpty()) {
+                Shell.Result deleteResult = Shell.cmd("rm -f \"" + configPath + "\"").exec();
+                if (deleteResult.isSuccess()) {
+                    Log.i(TAG, "Deleted gadget config: " + configPath);
+                } else {
+                    // Try with su -c
+                    Shell.cmd("su -c 'rm -f \"" + configPath + "\"'").exec();
+                }
+            }
+        }
+        
         Log.i(TAG, "Cleanup complete for: " + packageName);
     }
     
@@ -420,6 +555,7 @@ public class ConfigManager {
         public boolean enabled = false;
         public List<SoFile> soFiles = new ArrayList<>();
         public String injectionMethod = "standard"; // "standard", "riru" or "custom_linker"
+        public GadgetConfig gadgetConfig = null;
     }
     
     public static class SoFile {
@@ -434,5 +570,13 @@ public class ConfigManager {
             }
             return false;
         }
+    }
+    
+    public static class GadgetConfig {
+        public String address = "0.0.0.0";
+        public int port = 27042;
+        public String onPortConflict = "fail";
+        public String onLoad = "wait";
+        public String gadgetName = "libgadget.so";
     }
 }

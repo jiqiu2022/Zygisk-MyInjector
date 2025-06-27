@@ -107,6 +107,12 @@ void hack_thread_func(const char *game_data_dir, const char *package_name, JavaV
     
     // Load each SO file using the configured method
     for (const auto &soFile : soFiles) {
+        // Skip config files
+        if (soFile.name.find(".config.so") != std::string::npos) {
+            LOGI("Skipping config file: %s", soFile.name.c_str());
+            continue;
+        }
+        
         LOGI("Loading SO: %s (stored as: %s)", soFile.name.c_str(), soFile.storedPath.c_str());
         
         if (method == Config::InjectionMethod::CUSTOM_LINKER) {
