@@ -253,6 +253,15 @@ public class ConfigManager {
         saveConfig();
     }
     
+    public int getInjectionDelay() {
+        return config.injectionDelay;
+    }
+    
+    public void setInjectionDelay(int delay) {
+        config.injectionDelay = delay;
+        saveConfig();
+    }
+    
     // Copy SO files directly to app's data directory
     private void deploySoFilesToApp(String packageName) {
         AppConfig appConfig = config.perAppConfig.get(packageName);
@@ -402,6 +411,7 @@ public class ConfigManager {
     public static class ModuleConfig {
         public boolean enabled = true;
         public boolean hideInjection = false;
+        public int injectionDelay = 2; // Default 2 seconds
         public List<SoFile> globalSoFiles = new ArrayList<>();
         public Map<String, AppConfig> perAppConfig = new HashMap<>();
     }

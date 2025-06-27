@@ -8,6 +8,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.EditText;
+import android.text.TextWatcher;
+import android.text.Editable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -24,6 +27,8 @@ public class SettingsFragment extends Fragment {
     private RadioGroup radioGroupFilter;
     private RadioButton radioShowAll;
     private RadioButton radioHideSystem;
+    private EditText editInjectionDelay;
+    private ConfigManager configManager;
     
     private SharedPreferences sharedPreferences;
     private OnSettingsChangeListener settingsChangeListener;
@@ -53,6 +58,9 @@ public class SettingsFragment extends Fragment {
         radioGroupFilter = view.findViewById(R.id.radio_group_filter);
         radioShowAll = view.findViewById(R.id.radio_show_all);
         radioHideSystem = view.findViewById(R.id.radio_hide_system);
+        editInjectionDelay = view.findViewById(R.id.editInjectionDelay);
+        
+        configManager = new ConfigManager(getContext());
     }
     
     private void initSharedPreferences() {
@@ -67,6 +75,10 @@ public class SettingsFragment extends Fragment {
         } else {
             radioShowAll.setChecked(true);
         }
+        
+        // Load injection delay
+        int injectionDelay = configManager.getInjectionDelay();
+        editInjectionDelay.setText(String.valueOf(injectionDelay));
     }
     
     private void setupListeners() {
@@ -83,6 +95,32 @@ public class SettingsFragment extends Fragment {
                 // 通知设置变化
                 if (settingsChangeListener != null) {
                     settingsChangeListener.onHideSystemAppsChanged(hideSystemApps);
+                }
+            }
+        });
+        
+        // Injection delay listener
+        editInjectionDelay.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String text = s.toString().trim();
+                if (!text.isEmpty()) {
+                    try {
+                        int delay = Integer.parseInt(text);
+                        // Limit delay between 0 and 60 seconds
+                        if (delay < 0) delay = 0;
+                        if (delay > 60) delay = 60;
+                        
+                        configManager.setInjectionDelay(delay);
+                    } catch (NumberFormatException e) {
+                        // Ignore invalid input
+                    }
                 }
             }
         });

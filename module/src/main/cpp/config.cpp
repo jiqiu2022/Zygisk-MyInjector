@@ -31,6 +31,13 @@ namespace Config {
         } else if (json[valueStart] == 't' || json[valueStart] == 'f') {
             // Boolean value
             return (json.substr(valueStart, 4) == "true") ? "true" : "false";
+        } else {
+            // Number value
+            size_t valueEnd = json.find_first_of(",} \t\n", valueStart);
+            if (valueEnd == std::string::npos) {
+                return json.substr(valueStart);
+            }
+            return json.substr(valueStart, valueEnd - valueStart);
         }
         
         return "";
@@ -118,7 +125,13 @@ namespace Config {
         std::string hideStr = extractValue(json, "hideInjection");
         g_config.hideInjection = (hideStr == "true");
         
-        LOGD("Module enabled: %d, hide injection: %d", g_config.enabled, g_config.hideInjection);
+        std::string delayStr = extractValue(json, "injectionDelay");
+        if (!delayStr.empty()) {
+            g_config.injectionDelay = std::stoi(delayStr);
+        }
+        
+        LOGD("Module enabled: %d, hide injection: %d, injection delay: %d", 
+             g_config.enabled, g_config.hideInjection, g_config.injectionDelay);
         
         // Parse perAppConfig
         size_t perAppPos = json.find("\"perAppConfig\"");
@@ -211,5 +224,12 @@ namespace Config {
             return it->second.injectionMethod;
         }
         return InjectionMethod::STANDARD;
+    }
+    
+    int getInjectionDelay() {
+        if (!g_configLoaded) {
+            readConfig();
+        }
+        return g_config.injectionDelay;
     }
 }
