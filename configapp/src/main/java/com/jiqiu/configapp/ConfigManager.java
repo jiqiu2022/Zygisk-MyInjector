@@ -163,20 +163,44 @@ public class ConfigManager {
             }
         }
         
+        // Ensure SO storage directory exists
+        Shell.cmd("mkdir -p " + SO_STORAGE_DIR).exec();
+        Shell.cmd("chmod 755 " + SO_STORAGE_DIR).exec();
+        
         // Copy SO file to our storage
+        Log.i(TAG, "Copying SO file from: " + originalPath + " to: " + storedPath);
         Shell.Result result = Shell.cmd("cp \"" + originalPath + "\" \"" + storedPath + "\"").exec();
+        
         if (result.isSuccess()) {
+            // Verify the file was actually copied
+            Shell.Result verifyResult = Shell.cmd("test -f \"" + storedPath + "\" && echo 'exists'").exec();
+            if (!verifyResult.isSuccess() || verifyResult.getOut().isEmpty()) {
+                Log.e(TAG, "File copy appeared successful but file not found at: " + storedPath);
+                return;
+            }
+            
+            // Set proper permissions for SO file (readable and executable)
+            Shell.Result chmodResult = Shell.cmd("chmod 755 \"" + storedPath + "\"").exec();
+            if (!chmodResult.isSuccess()) {
+                Log.e(TAG, "Failed to set permissions on SO file: " + String.join("\n", chmodResult.getErr()));
+            }
+            
             SoFile soFile = new SoFile();
             soFile.name = fileName;
             soFile.storedPath = storedPath;
             soFile.originalPath = originalPath;
             config.globalSoFiles.add(soFile);
             
+            Log.i(TAG, "Successfully added SO file: " + fileName + " to storage");
+            
             if (deleteOriginal) {
                 Shell.cmd("rm \"" + originalPath + "\"").exec();
+                Log.i(TAG, "Deleted original file: " + originalPath);
             }
             
             saveConfig();
+        } else {
+            Log.e(TAG, "Failed to copy SO file: " + String.join("\n", result.getErr()));
         }
     }
     
@@ -440,28 +464,36 @@ public class ConfigManager {
         // Create files directory in app's data dir
         String filesDir = "/data/data/" + packageName + "/files";
         
-        // Use su -c for better compatibility
-        Shell.Result mkdirResult = Shell.cmd("su -c 'mkdir -p " + filesDir + "'").exec();
+        Log.i(TAG, "Deploying SO files to: " + filesDir);
+        
+        // Create directory without su -c for better compatibility
+        Shell.Result mkdirResult = Shell.cmd("mkdir -p " + filesDir).exec();
         if (!mkdirResult.isSuccess()) {
             Log.e(TAG, "Failed to create directory: " + filesDir);
             Log.e(TAG, "Error: " + String.join("\n", mkdirResult.getErr()));
-            // Try without su -c
-            mkdirResult = Shell.cmd("mkdir -p " + filesDir).exec();
-            if (!mkdirResult.isSuccess()) {
-                Log.e(TAG, "Also failed without su -c");
-                return;
-            }
+            return;
         }
         
-        // Set proper permissions and ownership
-        Shell.cmd("chmod 755 " + filesDir).exec();
+        // Set proper permissions and ownership for the files directory
+        Shell.cmd("chmod 771 " + filesDir).exec();
         
-        // Get UID for the package
+        // Get UID and GID for the package
         Shell.Result uidResult = Shell.cmd("stat -c %u /data/data/" + packageName).exec();
         String uid = "";
         if (uidResult.isSuccess() && !uidResult.getOut().isEmpty()) {
             uid = uidResult.getOut().get(0).trim();
             Log.i(TAG, "Package UID: " + uid);
+            
+            // Set ownership of files directory to match app
+            Shell.Result chownDirResult = Shell.cmd("chown " + uid + ":" + uid + " \"" + filesDir + "\"").exec();
+            if (!chownDirResult.isSuccess()) {
+                Log.e(TAG, "Failed to set directory ownership: " + String.join("\n", chownDirResult.getErr()));
+            }
+            
+            // Set SELinux context for the directory
+            Shell.cmd("chcon u:object_r:app_data_file:s0 \"" + filesDir + "\"").exec();
+        } else {
+            Log.e(TAG, "Failed to get package UID");
         }
         
         // Copy each SO file configured for this app
@@ -473,39 +505,66 @@ public class ConfigManager {
             Shell.Result checkResult = Shell.cmd("test -f \"" + soFile.storedPath + "\" && echo 'exists'").exec();
             if (!checkResult.isSuccess() || checkResult.getOut().isEmpty()) {
                 Log.e(TAG, "Source SO file not found: " + soFile.storedPath);
+                // Log more details about the missing file
+                Shell.Result lsResult = Shell.cmd("ls -la \"" + SO_STORAGE_DIR + "\"").exec();
+                Log.e(TAG, "Contents of SO storage dir: " + String.join("\n", lsResult.getOut()));
                 continue;
             }
             
             Log.i(TAG, "Copying: " + soFile.storedPath + " to " + destPath);
             
-            // Copy file using cat to avoid permission issues
-            String copyCmd = "cat \"" + soFile.storedPath + "\" > \"" + destPath + "\"";
-            Shell.Result result = Shell.cmd(copyCmd).exec();
+            // First, ensure the destination directory exists and has proper permissions
+            Shell.cmd("mkdir -p \"" + filesDir + "\"").exec();
+            Shell.cmd("chmod 755 \"" + filesDir + "\"").exec();
+            
+            // Copy file using cp with force flag
+            Shell.Result result = Shell.cmd("cp -f \"" + soFile.storedPath + "\" \"" + destPath + "\"").exec();
             
             if (!result.isSuccess()) {
-                Log.e(TAG, "Failed with cat, trying cp");
-                // Fallback to cp
-                result = Shell.cmd("cp -f \"" + soFile.storedPath + "\" \"" + destPath + "\"").exec();
+                Log.e(TAG, "Failed with cp, trying cat method");
+                Log.e(TAG, "cp error: " + String.join("\n", result.getErr()));
+                // Fallback to cat method
+                result = Shell.cmd("cat \"" + soFile.storedPath + "\" > \"" + destPath + "\"").exec();
+                
+                if (!result.isSuccess()) {
+                    Log.e(TAG, "Also failed with cat method");
+                    Log.e(TAG, "cat error: " + String.join("\n", result.getErr()));
+                }
             }
             
-            // Set permissions
-            Shell.cmd("chmod 755 \"" + destPath + "\"").exec();
+            // Set permissions - SO files need to be readable and executable
+            Shell.Result chmodResult = Shell.cmd("chmod 755 \"" + destPath + "\"").exec();
+            if (!chmodResult.isSuccess()) {
+                Log.e(TAG, "Failed to set permissions: " + String.join("\n", chmodResult.getErr()));
+            }
             
-            // Set ownership if we have the UID
+            // Set ownership to match the app's UID
             if (!uid.isEmpty()) {
-                Shell.cmd("chown " + uid + ":" + uid + " \"" + destPath + "\"").exec();
+                Shell.Result chownResult = Shell.cmd("chown " + uid + ":" + uid + " \"" + destPath + "\"").exec();
+                if (!chownResult.isSuccess()) {
+                    Log.e(TAG, "Failed to set ownership: " + String.join("\n", chownResult.getErr()));
+                    // Try alternative method
+                    Shell.cmd("chown " + uid + ".app_" + uid + " \"" + destPath + "\"").exec();
+                }
             }
             
-            // Verify the file was copied
-            Shell.Result verifyResult = Shell.cmd("ls -la \"" + destPath + "\" 2>/dev/null").exec();
+            // Set SELinux context to match app's data files
+            Shell.Result contextResult = Shell.cmd("chcon u:object_r:app_data_file:s0 \"" + destPath + "\"").exec();
+            if (!contextResult.isSuccess()) {
+                Log.w(TAG, "Failed to set SELinux context (this may be normal on some devices)");
+            }
+            
+            // Verify the file was copied with correct permissions
+            Shell.Result verifyResult = Shell.cmd("ls -laZ \"" + destPath + "\" 2>/dev/null").exec();
             if (verifyResult.isSuccess() && !verifyResult.getOut().isEmpty()) {
                 Log.i(TAG, "Successfully deployed: " + String.join(" ", verifyResult.getOut()));
             } else {
-                Log.e(TAG, "Failed to verify SO file copy: " + destPath);
-                // Try another verification method
-                Shell.Result sizeResult = Shell.cmd("stat -c %s \"" + destPath + "\" 2>/dev/null").exec();
-                if (sizeResult.isSuccess() && !sizeResult.getOut().isEmpty()) {
-                    Log.i(TAG, "File exists with size: " + sizeResult.getOut().get(0) + " bytes");
+                // Fallback verification without SELinux context
+                verifyResult = Shell.cmd("ls -la \"" + destPath + "\" 2>/dev/null").exec();
+                if (verifyResult.isSuccess() && !verifyResult.getOut().isEmpty()) {
+                    Log.i(TAG, "Successfully deployed: " + String.join(" ", verifyResult.getOut()));
+                } else {
+                    Log.e(TAG, "Failed to verify SO file copy: " + destPath);
                 }
             }
         }
