@@ -128,15 +128,14 @@ public class SoManagerFragment extends Fragment {
     }
     
     private void showAddSoDialog() {
-        String[] options = {"浏览文件系统", "从外部文件管理器选择", "手动输入路径"};
+        // 外部文件管理器在选择非.so文件会导致出现temp_文件错误 先删除
+        String[] options = {"浏览文件系统", "手动输入路径"};
         
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("添加SO文件")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
                         openFileBrowser();
-                    } else if (which == 1) {
-                        openFilePicker();
                     } else {
                         showPathInputDialog();
                     }

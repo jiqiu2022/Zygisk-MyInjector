@@ -86,92 +86,117 @@ public class FileBrowserActivity extends AppCompatActivity {
             items.add(new FileItem("..", true, true));
         }
         
-        // List files using root
+        // List files using root with better debugging
         Log.d(TAG, "Loading files from: " + currentPath);
-        Shell.Result result = Shell.cmd("ls -la " + currentPath + " 2>/dev/null").exec();
-        Log.d(TAG, "ls command success: " + result.isSuccess() + ", output lines: " + result.getOut().size());
         
-        if (result.isSuccess()) {
-            for (String line : result.getOut()) {
-                // Skip empty lines, total line, and symbolic links
-                if (line.trim().isEmpty() || line.startsWith("total") || line.contains("->")) {
-                    continue;
+        // First, try to resolve symbolic links
+        Shell.Result resolveResult = Shell.cmd("readlink -f " + currentPath + " 2>/dev/null").exec();
+        String resolvedPath = currentPath;
+        if (resolveResult.isSuccess() && !resolveResult.getOut().isEmpty()) {
+            resolvedPath = resolveResult.getOut().get(0);
+            Log.d(TAG, "Resolved path: " + resolvedPath);
+        }
+        
+        // Try multiple methods to list files
+        boolean filesFound = false;
+        
+        // Method 1: Use find command to get only .so files
+        Log.d(TAG, "Searching for .so files...");
+        Shell.Result findResult = Shell.cmd("find \"" + resolvedPath + "\" -maxdepth 1 -type f -name '*.so' 2>/dev/null").exec();
+        if (findResult.isSuccess()) {
+            for (String path : findResult.getOut()) {
+                if (!path.trim().isEmpty()) {
+                    String name = path.substring(path.lastIndexOf('/') + 1);
+                    items.add(new FileItem(name, false, true));
+                    filesFound = true;
                 }
-                
-                // Try to parse ls output - handle different formats
-                String name = null;
-                boolean isDirectory = false;
-                boolean isReadable = true;
-                
-                // Check if line starts with permissions (drwxr-xr-x format)
-                if (line.matches("^[dlrwxst-]{10}.*")) {
-                    String[] parts = line.split("\\s+", 9);
-                    if (parts.length >= 9) {
-                        String permissions = parts[0];
-                        name = parts[parts.length - 1];
-                        isDirectory = permissions.startsWith("d");
-                        isReadable = permissions.length() > 1 && permissions.charAt(1) == 'r';
-                    }
-                } else {
-                    // Simple format, just the filename
-                    name = line.trim();
-                    // Check if it's a directory by trying to list it
-                    Shell.Result dirCheck = Shell.cmd("test -d \"" + currentPath + "/" + name + "\" && echo 'dir'").exec();
-                    isDirectory = dirCheck.isSuccess() && !dirCheck.getOut().isEmpty();
-                }
-                
-                if (name != null && !".".equals(name) && !"..".equals(name)) {
-                    // Filter files by extension
-                    if (!isDirectory && fileFilter != null && !name.endsWith(fileFilter)) {
+            }
+        }
+        
+        // Method 2: If no .so files found with find, try ls and filter
+        if (!filesFound) {
+            Log.d(TAG, "Trying ls command and filtering...");
+            Shell.Result result = Shell.cmd("ls -la \"" + resolvedPath + "\" 2>/dev/null").exec();
+            Log.d(TAG, "ls -la command success: " + result.isSuccess() + ", output lines: " + result.getOut().size());
+            
+            if (result.isSuccess() && !result.getOut().isEmpty()) {
+                for (String line : result.getOut()) {
+                    Log.d(TAG, "Processing line: " + line);
+                    
+                    // Skip empty lines and total line
+                    if (line.trim().isEmpty() || line.startsWith("total")) {
                         continue;
                     }
                     
-                    items.add(new FileItem(name, isDirectory, isReadable));
+                    String name = null;
+                    boolean isDirectory = false;
+                    boolean isReadable = true;
+                    
+                    // Check if line starts with permissions (drwxr-xr-x format)
+                    if (line.matches("^[dlrwxst-]{10}.*")) {
+                        String[] parts = line.split("\\s+", 9);
+                        if (parts.length >= 9) {
+                            String permissions = parts[0];
+                            name = parts[parts.length - 1];
+                            isDirectory = permissions.startsWith("d");
+                            isReadable = permissions.length() > 1 && permissions.charAt(1) == 'r';
+                            
+                            // Handle symbolic links
+                            if (line.contains("->")) {
+                                // Extract the actual name before the arrow
+                                int arrowIndex = name.indexOf(" -> ");
+                                if (arrowIndex > 0) {
+                                    name = name.substring(0, arrowIndex);
+                                }
+                            }
+                        }
+                    } else {
+                        // Simple format, just the filename
+                        name = line.trim();
+                        // Check if it's a directory by trying to list it
+                        Shell.Result dirCheck = Shell.cmd("test -d \"" + resolvedPath + "/" + name + "\" && echo 'dir'").exec();
+                        isDirectory = dirCheck.isSuccess() && !dirCheck.getOut().isEmpty();
+                    }
+                    
+                    if (name != null && !".".equals(name) && !"..".equals(name)) {
+                        // Only show .so files, skip directories and other files
+                        if (!isDirectory && name.endsWith(".so")) {
+                            items.add(new FileItem(name, false, isReadable));
+                            filesFound = true;
+                        }
+                    }
                 }
             }
-        } else {
-            // If ls fails, try a simpler approach
-            Shell.Result simpleResult = Shell.cmd("cd " + currentPath + " && for f in *; do echo \"$f\"; done").exec();
+        }
+        
+        // Method 3: If still no files, try simple ls and filter
+        if (!filesFound) {
+            Log.d(TAG, "Trying simple ls command...");
+            Shell.Result simpleResult = Shell.cmd("ls \"" + resolvedPath + "\" 2>/dev/null").exec();
             if (simpleResult.isSuccess()) {
                 for (String name : simpleResult.getOut()) {
                     if (!name.trim().isEmpty() && !"*".equals(name)) {
-                        Shell.Result dirCheck = Shell.cmd("test -d \"" + currentPath + "/" + name + "\" && echo 'dir'").exec();
+                        Shell.Result dirCheck = Shell.cmd("test -d \"" + resolvedPath + "/" + name + "\" && echo 'dir'").exec();
                         boolean isDirectory = dirCheck.isSuccess() && !dirCheck.getOut().isEmpty();
                         
-                        // Filter files by extension
-                        if (!isDirectory && fileFilter != null && !name.endsWith(fileFilter)) {
-                            continue;
+                        // Only show .so files
+                        if (!isDirectory && name.endsWith(".so")) {
+                            items.add(new FileItem(name, false, true));
+                            filesFound = true;
                         }
-                        
-                        items.add(new FileItem(name, isDirectory, true));
                     }
                 }
             }
         }
         
-        // If still no items and not root, add some common directories to try
-        if (items.size() <= 1 && "/data/local/tmp".equals(currentPath)) {
-            // Try to create a test file to verify access
-            Shell.cmd("touch /data/local/tmp/test_access.tmp && rm /data/local/tmp/test_access.tmp").exec();
-            
-            // Add any .so files we can find
-            Shell.Result findResult = Shell.cmd("find " + currentPath + " -maxdepth 1 -name '*.so' -type f 2>/dev/null").exec();
-            if (findResult.isSuccess()) {
-                for (String path : findResult.getOut()) {
-                    if (!path.trim().isEmpty()) {
-                        String name = path.substring(path.lastIndexOf('/') + 1);
-                        items.add(new FileItem(name, false, true));
-                    }
-                }
-            }
+        // Debug: Log what we found
+        Log.d(TAG, "Total .so files found: " + items.size());
+        for (FileItem item : items) {
+            Log.d(TAG, "SO file: " + item.name);
         }
         
-        Collections.sort(items, (a, b) -> {
-            if (a.isDirectory != b.isDirectory) {
-                return a.isDirectory ? -1 : 1;
-            }
-            return a.name.compareToIgnoreCase(b.name);
-        });
+        // Sort files by name
+        Collections.sort(items, (a, b) -> a.name.compareToIgnoreCase(b.name));
         
         adapter.setItems(items);
         emptyView.setVisibility(items.isEmpty() || (items.size() == 1 && "..".equals(items.get(0).name)) ? View.VISIBLE : View.GONE);
@@ -236,9 +261,9 @@ public class FileBrowserActivity extends AppCompatActivity {
             void bind(FileItem item) {
                 name.setText(item.name);
                 
-                if (item.isDirectory) {
-                    icon.setImageResource(android.R.drawable.ic_menu_agenda);
-                    info.setText("文件夹");
+                if ("..".equals(item.name)) {
+                    icon.setImageResource(android.R.drawable.ic_menu_revert);
+                    info.setText("返回上级");
                 } else {
                     icon.setImageResource(android.R.drawable.ic_menu_save);
                     info.setText("SO文件");
@@ -260,20 +285,8 @@ public class FileBrowserActivity extends AppCompatActivity {
                             currentPath = "/";
                         }
                         loadFiles();
-                    } else if (item.isDirectory) {
-                        if (!item.isReadable) {
-                            Toast.makeText(FileBrowserActivity.this, 
-                                    "没有权限访问此目录", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        if ("/".equals(currentPath)) {
-                            currentPath = "/" + item.name;
-                        } else {
-                            currentPath = currentPath + "/" + item.name;
-                        }
-                        loadFiles();
                     } else {
-                        // File selected
+                        // File selected (only .so files are shown now)
                         String selectedPath = currentPath + "/" + item.name;
                         Intent resultIntent = new Intent();
                         resultIntent.putExtra(EXTRA_SELECTED_PATH, selectedPath);

@@ -50,12 +50,13 @@
                 android:text="Server 模式"
                 android:checked="true" />
 
-            <RadioButton
-                android:id="@+id/radioModeScript"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Script 模式" />
+<!--这个模式选择js文件时候 app崩溃 先关闭-->
+<!--            <RadioButton-->
+<!--                android:id="@+id/radioModeScript"-->
+<!--                android:layout_width="0dp"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_weight="1"-->
+<!--                android:text="Script 模式" />-->
 
         </RadioGroup>
 

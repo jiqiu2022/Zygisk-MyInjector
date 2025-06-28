@@ -158,7 +158,7 @@ public class GadgetConfigDialog extends DialogFragment {
     private void initViews(View view) {
         modeRadioGroup = view.findViewById(R.id.modeRadioGroup);
         radioModeServer = view.findViewById(R.id.radioModeServer);
-        radioModeScript = view.findViewById(R.id.radioModeScript);
+        // radioModeScript = view.findViewById(R.id.radioModeScript);
         serverModeLayout = view.findViewById(R.id.serverModeLayout);
         scriptModeLayout = view.findViewById(R.id.scriptModeLayout);
         addressRadioGroup = view.findViewById(R.id.addressRadioGroup);
@@ -239,15 +239,20 @@ public class GadgetConfigDialog extends DialogFragment {
         // Mode radio group listener
         modeRadioGroup.setOnCheckedChangeListener((group, checkedId) -> {
             if (!isUpdatingUI) {
-                if (checkedId == R.id.radioModeScript) {
-                    config.mode = "script";
-                    serverModeLayout.setVisibility(View.GONE);
-                    scriptModeLayout.setVisibility(View.VISIBLE);
-                } else {
-                    config.mode = "server";
-                    serverModeLayout.setVisibility(View.VISIBLE);
-                    scriptModeLayout.setVisibility(View.GONE);
-                }
+//                if (checkedId == R.id.radioModeScript) {
+//                    config.mode = "script";
+//                    serverModeLayout.setVisibility(View.GONE);
+//                    scriptModeLayout.setVisibility(View.VISIBLE);
+//                } else {
+//                    config.mode = "server";
+//                    serverModeLayout.setVisibility(View.VISIBLE);
+//                    scriptModeLayout.setVisibility(View.GONE);
+//                }
+
+                config.mode = "server";
+                serverModeLayout.setVisibility(View.VISIBLE);
+                scriptModeLayout.setVisibility(View.GONE);
+
                 updateJsonPreview();
             }
         });
@@ -487,15 +492,13 @@ public class GadgetConfigDialog extends DialogFragment {
     }
     
     private void selectScriptFile() {
-        String[] options = {"浏览文件系统", "从外部文件管理器选择", "手动输入路径"};
+        String[] options = {"浏览文件系统", "手动输入路径"};
         
         new MaterialAlertDialogBuilder(requireContext())
                 .setTitle("选择 Script 文件")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
                         openFileBrowser();
-                    } else if (which == 1) {
-                        openFilePicker();
                     } else {
                         showPathInputDialog();
                     }

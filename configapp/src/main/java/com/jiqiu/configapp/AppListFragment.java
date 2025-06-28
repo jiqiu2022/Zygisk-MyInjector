@@ -1,5 +1,7 @@
 package com.jiqiu.configapp;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
@@ -37,6 +39,9 @@ import java.util.List;
  */
 public class AppListFragment extends Fragment implements AppListAdapter.OnAppToggleListener, AppListAdapter.OnAppClickListener {
     
+    private static final String PREFS_NAME = "MyInjectorSettings";
+    private static final String KEY_HIDE_SYSTEM_APPS = "hide_system_apps";
+    
     private RecyclerView recyclerView;
     private AppListAdapter adapter;
     private TextInputEditText searchEditText;
@@ -45,6 +50,7 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
     private List<AppInfo> allApps;
     private boolean hideSystemApps = false;
     private ConfigManager configManager;
+    private SharedPreferences sharedPreferences;
     
     @Nullable
     @Override
@@ -61,9 +67,17 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         // Ensure module directories exist
         configManager.ensureModuleDirectories();
         
+        // 初始化SharedPreferences
+        sharedPreferences = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        
         initViews(view);
         setupRecyclerView();
         setupSearchView();
+        
+        // 从SharedPreferences恢复隐藏系统应用的设置
+        hideSystemApps = sharedPreferences.getBoolean(KEY_HIDE_SYSTEM_APPS, false);
+        
+        // 每次都重新加载应用列表，确保切换选项卡后不会消失
         loadApps();
     }
     
@@ -111,6 +125,13 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
     
     public void setHideSystemApps(boolean hideSystemApps) {
         this.hideSystemApps = hideSystemApps;
+        
+        // 保存设置到SharedPreferences
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putBoolean(KEY_HIDE_SYSTEM_APPS, hideSystemApps);
+        editor.apply();
+        
+        // 应用过滤
         filterApps(searchEditText.getText().toString());
     }
     
