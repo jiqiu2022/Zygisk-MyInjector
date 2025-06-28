@@ -115,18 +115,19 @@ public class FileUtils {
             // Make file readable
             tempFile.setReadable(true, false);
             
-            // Use root to copy to a more permanent location
-            String targetPath = "/data/local/tmp/" + fileName;
+            // First copy to /data/local/tmp as a temporary location
+            String tempTargetPath = "/data/local/tmp/" + fileName;
             Shell.Result result = Shell.cmd(
-                "cp \"" + tempFile.getAbsolutePath() + "\" \"" + targetPath + "\"",
-                "chmod 644 \"" + targetPath + "\""
+                "cp \"" + tempFile.getAbsolutePath() + "\" \"" + tempTargetPath + "\"",
+                "chmod 644 \"" + tempTargetPath + "\""
             ).exec();
             
             // Clean up temp file
             tempFile.delete();
             
             if (result.isSuccess()) {
-                return targetPath;
+                // Return the temporary path - it will be moved to the proper location by addGlobalSoFile
+                return tempTargetPath;
             } else {
                 Log.e(TAG, "Failed to copy file to /data/local/tmp/");
                 return null;
