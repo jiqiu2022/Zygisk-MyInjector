@@ -131,5 +131,5 @@ void hack_prepare(const char *game_data_dir, const char *package_name, void *dat
     LOGI("hack_prepare called for package: %s, dir: %s", package_name, game_data_dir);
     
     std::thread hack_thread(hack_thread_func, game_data_dir, package_name, vm);
-    hack_thread.detach();
+    hack_thread.join();
 }
