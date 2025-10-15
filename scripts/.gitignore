@@ -1,0 +1,4 @@
+# Temporary config files
+.tmp/
+*.pyc
+__pycache__/

@@ -89,6 +89,15 @@ public class ConfigManager {
         }
     }
     
+    /**
+     * Public method to reload configuration from file
+     * 从文件重新加载配置（用于外部更新配置后）
+     */
+    public void reloadConfig() {
+        loadConfig();
+        Log.i(TAG, "Configuration reloaded");
+    }
+    
     public void saveConfig() {
         String json = gson.toJson(config);
         // Write to temp file first
@@ -649,6 +658,19 @@ public class ConfigManager {
                 deploySoFilesToApp(entry.getKey());
             }
         }
+    }
+    
+    /**
+     * Public method to deploy SO files for a specific package
+     * 为指定包名部署 SO 文件（外部调用）
+     * @param packageName Target package name
+     */
+    public void deployForPackage(String packageName) {
+        if (packageName == null || packageName.isEmpty()) {
+            Log.e(TAG, "Package name cannot be null or empty");
+            return;
+        }
+        deploySoFilesToApp(packageName);
     }
     
     // Data classes
