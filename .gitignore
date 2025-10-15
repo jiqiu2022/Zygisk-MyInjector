@@ -12,3 +12,10 @@
 /out
 .externalNativeBuild
 .cxx
+
+# Frida Gadget temporary downloads
+tmp_gadget/
+*.so
+
+# Frida Gadget local cache
+scripts/.cache/
