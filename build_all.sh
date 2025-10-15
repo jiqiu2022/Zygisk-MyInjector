@@ -105,10 +105,14 @@ else
     exit 1
 fi
 
-# 创建 META-INF 目录（Magisk 需要）
-mkdir -p $TEMP_DIR/META-INF/com/google/android
-touch $TEMP_DIR/META-INF/com/google/android/update-binary
-touch $TEMP_DIR/META-INF/com/google/android/updater-script
+# 复制 META-INF 目录（Magisk 需要）
+if [ -d "template/magisk_module/META-INF" ]; then
+    cp -r template/magisk_module/META-INF $TEMP_DIR/
+    echo -e "  ${GREEN}✓ 复制 META-INF${NC}"
+else
+    echo -e "  ${RED}✗ 未找到 META-INF 模板${NC}"
+    exit 1
+fi
 
 # 打包
 echo -e "\n${YELLOW}[5/5] 打包模块...${NC}"
