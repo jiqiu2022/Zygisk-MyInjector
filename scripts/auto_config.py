@@ -35,6 +35,7 @@ import sys
 import os
 import tempfile
 import shutil
+import argparse
 from typing import List, Dict, Optional
 from pathlib import Path
 
@@ -57,6 +58,9 @@ style = Style.from_dict({
 FRIDA_VERSION = "16.0.7"
 MODULE_PATH = "/data/adb/modules/zygisk-myinjector"
 SO_STORAGE_DIR = f"{MODULE_PATH}/so_files"
+
+# Default ports
+DEFAULT_PORTS = [27042, 65320]
 
 # Local cache directory for downloaded gadgets
 SCRIPT_DIR = Path(__file__).parent
@@ -251,7 +255,7 @@ def select_package(adb: ADBHelper) -> Optional[str]:
         return None
 
 
-def configure_gadget() -> Optional[Dict]:
+def configure_gadget(preset_port: Optional[int] = None) -> Optional[Dict]:
     """Interactive gadget configuration"""
     print("\n=== Gadget Configuration ===")
     
@@ -282,12 +286,18 @@ def configure_gadget() -> Optional[Dict]:
         address = input("Listen address (default: 0.0.0.0): ").strip()
         gadget_config['address'] = address or '0.0.0.0'
         
-        port = input("Listen port (default: 27042): ").strip()
-        try:
-            gadget_config['port'] = int(port) if port else 27042
-        except ValueError:
-            print("Invalid port, using default 27042")
-            gadget_config['port'] = 27042
+        # Use preset port if provided
+        if preset_port:
+            gadget_config['port'] = preset_port
+            print(f"\nUsing preset port: {preset_port}")
+        else:
+            print(f"\nAvailable ports: {', '.join(map(str, DEFAULT_PORTS))}")
+            port = input(f"Listen port (default: {DEFAULT_PORTS[0]}): ").strip()
+            try:
+                gadget_config['port'] = int(port) if port else DEFAULT_PORTS[0]
+            except ValueError:
+                print(f"Invalid port, using default {DEFAULT_PORTS[0]}")
+                gadget_config['port'] = DEFAULT_PORTS[0]
         
         print("\nPort conflict behavior:")
         print("1. fail - Exit if port is in use")
@@ -667,6 +677,19 @@ def restart_app(adb: ADBHelper, package_name: str):
 
 def main():
     """Main entry point"""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description='Zygisk-MyInjector Auto Config Tool',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        '-p', '--port',
+        type=int,
+        choices=DEFAULT_PORTS,
+        help=f'Preset Gadget port (choices: {", ".join(map(str, DEFAULT_PORTS))})'
+    )
+    args = parser.parse_args()
+    
     print("=" * 60)
     print("Zygisk-MyInjector Auto Config Tool")
     print("=" * 60)
@@ -690,7 +713,7 @@ def main():
         sys.exit(1)
     
     # Step 4: Configure gadget
-    gadget_config = configure_gadget()
+    gadget_config = configure_gadget(preset_port=args.port)
     if not gadget_config:
         sys.exit(1)
     
@@ -710,8 +733,7 @@ def main():
     print(gadget_config_json)
     
     # Step 7: Save to temp files
-    temp_dir = os.path.join(os.path.dirname(__file__), '.tmp')
-    os.makedirs(temp_dir, exist_ok=True)
+    temp_dir = tempfile.mkdtemp(prefix='frida_gadget_config_')
     
     config_file = os.path.join(temp_dir, 'config.json')
     gadget_name = gadget_config['gadgetName'].replace('.so', '.config.so')
@@ -803,6 +825,12 @@ def main():
         print("Please check logcat for details:")
         print(f"  adb -s {device_id} logcat -s ConfigApplyReceiver:* ConfigManager:*")
         sys.exit(1)
+    
+    # Clean up temp directory
+    try:
+        shutil.rmtree(temp_dir)
+    except Exception:
+        pass  # Ignore cleanup errors
 
 
 if __name__ == '__main__':
