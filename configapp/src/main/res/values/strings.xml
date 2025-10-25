@@ -4,6 +4,7 @@
     <!-- 底部导航 -->
     <string name="title_apps">应用列表</string>
     <string name="title_so_manager">SO库管理</string>
+    <string name="title_kpm_hide">KPM隐藏</string>
     <string name="title_settings">全局设置</string>
 
     <!-- 应用列表 -->
@@ -21,4 +22,25 @@
     <!-- 关于 -->
     <string name="about">关于</string>
     <string name="app_description">MyInjector 配置应用，用于管理注入设置</string>
+
+    <!-- KPM 隐藏 -->
+    <string name="kpm_hide_title">KPM 注入隐藏</string>
+    <string name="kpm_module_status">模块状态</string>
+    <string name="kpm_module_loaded">已加载</string>
+    <string name="kpm_module_not_loaded">未加载</string>
+    <string name="kpm_module_info">KPM 内核模块信息</string>
+    <string name="kpm_reload_module">重载模块</string>
+    <string name="kpm_reload_success">模块重载成功</string>
+    <string name="kpm_reload_failed">模块重载失败</string>
+    <string name="kpm_config_path">配置文件路径</string>
+    <string name="kpm_fixed_items">固定隐藏项</string>
+    <string name="kpm_optional_items">可选隐藏 SO 列表</string>
+    <string name="kpm_usage_info">使用说明</string>
+    <string name="kpm_fixed_badge">固定</string>
+    <string name="kpm_hidden">已隐藏</string>
+    <string name="kpm_not_hidden">未隐藏</string>
+    <string name="kpm_add_success">已添加到隐藏列表</string>
+    <string name="kpm_remove_success">已从隐藏列表移除</string>
+    <string name="kpm_update_failed">更新失败</string>
+    <string name="kpm_fixed_cannot_uncheck">libmyinjector.so 是必需的，不能取消隐藏</string>
 </resources>

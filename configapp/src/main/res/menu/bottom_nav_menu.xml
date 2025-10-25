@@ -9,6 +9,11 @@
         android:id="@+id/navigation_so_manager"
         android:icon="@android:drawable/ic_menu_save"
         android:title="@string/title_so_manager" />
+    
+    <item
+        android:id="@+id/navigation_kpm_hide"
+        android:icon="@android:drawable/ic_secure"
+        android:title="@string/title_kpm_hide" />
         
     <item
         android:id="@+id/navigation_settings"

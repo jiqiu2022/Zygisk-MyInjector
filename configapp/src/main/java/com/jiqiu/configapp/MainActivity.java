@@ -19,6 +19,7 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
     private AppListFragment appListFragment;
     private SettingsFragment settingsFragment;
     private SoManagerFragment soManagerFragment;
+    private KpmHideFragment kpmHideFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +54,9 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             } else if (itemId == R.id.navigation_so_manager) {
                 showSoManagerFragment();
                 return true;
+            } else if (itemId == R.id.navigation_kpm_hide) {
+                showKpmHideFragment();
+                return true;
             } else if (itemId == R.id.navigation_settings) {
                 showSettingsFragment();
                 return true;
@@ -73,6 +77,13 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             soManagerFragment = new SoManagerFragment();
         }
         showFragment(soManagerFragment);
+    }
+
+    private void showKpmHideFragment() {
+        if (kpmHideFragment == null) {
+            kpmHideFragment = new KpmHideFragment();
+        }
+        showFragment(kpmHideFragment);
     }
 
     private void showSettingsFragment() {

@@ -18,6 +18,9 @@ public class ConfigManager {
     public static final String MODULE_PATH = "/data/adb/modules/zygisk-myinjector";
     public static final String CONFIG_FILE = MODULE_PATH + "/config.json";
     public static final String SO_STORAGE_DIR = MODULE_PATH + "/so_files";
+    public static final String KPM_MODULE_PATH = MODULE_PATH + "/injectHide.kpm";
+    public static final String KPM_HIDE_CONFIG = MODULE_PATH + "/kpm_hide_config.txt";
+    private static final String KPM_MODULE_NAME = "hideInject";
     
     private final Context context;
     private final Gson gson;
@@ -649,6 +652,220 @@ public class ConfigManager {
                 deploySoFilesToApp(entry.getKey());
             }
         }
+    }
+    
+    // ==================== KPM Module Management ====================
+    
+    /**
+     * 检查 KPM 模块是否已加载
+     */
+    public boolean isKpmModuleLoaded() {
+        Shell.Result result = Shell.cmd("lsmod | grep " + KPM_MODULE_NAME).exec();
+        return result.isSuccess() && !result.getOut().isEmpty();
+    }
+    
+    /**
+     * 加载 KPM 模块
+     */
+    public boolean loadKpmModule() {
+        if (!isRootAvailable()) {
+            Log.e(TAG, "Root access not available!");
+            return false;
+        }
+        
+        // Check if module file exists
+        Shell.Result checkResult = Shell.cmd("test -f \"" + KPM_MODULE_PATH + "\" && echo 'exists'").exec();
+        if (!checkResult.isSuccess() || checkResult.getOut().isEmpty()) {
+            Log.e(TAG, "KPM module file not found: " + KPM_MODULE_PATH);
+            return false;
+        }
+        
+        // Check if already loaded
+        if (isKpmModuleLoaded()) {
+            Log.i(TAG, "KPM module already loaded");
+            return true;
+        }
+        
+        // Load module
+        Shell.Result result = Shell.cmd("insmod \"" + KPM_MODULE_PATH + "\"").exec();
+        if (result.isSuccess()) {
+            Log.i(TAG, "KPM module loaded successfully");
+            return true;
+        } else {
+            Log.e(TAG, "Failed to load KPM module: " + String.join("\n", result.getErr()));
+            return false;
+        }
+    }
+    
+    /**
+     * 卸载 KPM 模块
+     */
+    public boolean unloadKpmModule() {
+        if (!isRootAvailable()) {
+            Log.e(TAG, "Root access not available!");
+            return false;
+        }
+        
+        if (!isKpmModuleLoaded()) {
+            Log.i(TAG, "KPM module not loaded");
+            return true;
+        }
+        
+        Shell.Result result = Shell.cmd("rmmod " + KPM_MODULE_NAME).exec();
+        if (result.isSuccess()) {
+            Log.i(TAG, "KPM module unloaded successfully");
+            return true;
+        } else {
+            Log.e(TAG, "Failed to unload KPM module: " + String.join("\n", result.getErr()));
+            return false;
+        }
+    }
+    
+    /**
+     * 重新加载 KPM 模块
+     */
+    public boolean reloadKpmModule() {
+        Log.i(TAG, "Reloading KPM module...");
+        
+        // Unload first
+        if (isKpmModuleLoaded()) {
+            if (!unloadKpmModule()) {
+                Log.e(TAG, "Failed to unload module before reload");
+                return false;
+            }
+            // Give kernel time to cleanup
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        // Load again
+        return loadKpmModule();
+    }
+    
+    /**
+     * 更新 KPM 隐藏配置并重载模块
+     */
+    public boolean updateKpmHideConfig(List<String> soNames) {
+        if (!isRootAvailable()) {
+            Log.e(TAG, "Root access not available!");
+            return false;
+        }
+        
+        // Build config content
+        StringBuilder configContent = new StringBuilder();
+        for (String soName : soNames) {
+            configContent.append(soName).append("\n");
+        }
+        
+        // Write to temp file
+        String tempFile = context.getCacheDir() + "/kpm_hide_config.txt";
+        try {
+            java.io.FileWriter writer = new java.io.FileWriter(tempFile);
+            writer.write(configContent.toString());
+            writer.close();
+            
+            // Ensure module directory exists
+            Shell.cmd("mkdir -p \"" + MODULE_PATH + "\"").exec();
+            
+            // Copy to module directory with root
+            Shell.Result copyResult = Shell.cmd("cp \"" + tempFile + "\" \"" + KPM_HIDE_CONFIG + "\"").exec();
+            if (!copyResult.isSuccess()) {
+                Log.e(TAG, "Failed to copy KPM config: " + String.join("\n", copyResult.getErr()));
+                return false;
+            }
+            
+            Shell.cmd("chmod 644 \"" + KPM_HIDE_CONFIG + "\"").exec();
+            
+            // Clean up temp file
+            new File(tempFile).delete();
+            
+            Log.i(TAG, "KPM hide config updated with " + soNames.size() + " entries");
+            
+            // Reload module to apply changes
+            return reloadKpmModule();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to update KPM config", e);
+            return false;
+        }
+    }
+    
+    /**
+     * 获取当前隐藏的 SO 列表
+     */
+    public List<String> getHiddenSoList() {
+        List<String> hiddenList = new ArrayList<>();
+        
+        Shell.Result result = Shell.cmd("cat \"" + KPM_HIDE_CONFIG + "\"").exec();
+        if (result.isSuccess()) {
+            for (String line : result.getOut()) {
+                String trimmed = line.trim();
+                if (!trimmed.isEmpty()) {
+                    hiddenList.add(trimmed);
+                }
+            }
+        }
+        
+        return hiddenList;
+    }
+    
+    /**
+     * 添加 SO 到隐藏列表
+     */
+    public boolean addSoToHideList(String soName) {
+        List<String> hiddenList = getHiddenSoList();
+        if (!hiddenList.contains(soName)) {
+            hiddenList.add(soName);
+            return updateKpmHideConfig(hiddenList);
+        }
+        return true;
+    }
+    
+    /**
+     * 从隐藏列表移除 SO
+     */
+    public boolean removeSoFromHideList(String soName) {
+        List<String> hiddenList = getHiddenSoList();
+        if (hiddenList.remove(soName)) {
+            return updateKpmHideConfig(hiddenList);
+        }
+        return true;
+    }
+    
+    /**
+     * 获取所有可隐藏的 SO 文件列表（从已启用应用中提取）
+     */
+    public List<String> getAvailableSoList() {
+        List<String> availableSos = new ArrayList<>();
+        
+        // Always include our injector library
+        availableSos.add("libmyinjector.so");
+        
+        // Add SOs from all enabled apps
+        for (Map.Entry<String, AppConfig> entry : config.perAppConfig.entrySet()) {
+            AppConfig appConfig = entry.getValue();
+            if (appConfig.enabled && appConfig.soFiles != null) {
+                for (SoFile soFile : appConfig.soFiles) {
+                    if (!availableSos.contains(soFile.name)) {
+                        availableSos.add(soFile.name);
+                    }
+                }
+            }
+        }
+        
+        // Add global SO files
+        if (config.globalSoFiles != null) {
+            for (SoFile soFile : config.globalSoFiles) {
+                if (!availableSos.contains(soFile.name)) {
+                    availableSos.add(soFile.name);
+                }
+            }
+        }
+        
+        return availableSos;
     }
     
     // Data classes

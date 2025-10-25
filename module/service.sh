@@ -94,5 +94,43 @@ chown -R root:root /data/adb/modules/zygisk-myinjector
 
 log "ConfigApp 安装脚本执行完成"
 
+# ==================== KPM 模块加载 ====================
+
+# KPM 模块路径
+KPM_MODULE="$MODDIR/injectHide.kpm"
+KPM_CONFIG="$MODDIR/kpm_hide_config.txt"
+
+log "开始加载 KPM 内核模块"
+
+# 检查 KPM 模块文件是否存在
+if [ ! -f "$KPM_MODULE" ]; then
+    log "KPM 模块文件不存在: $KPM_MODULE"
+else
+    log "找到 KPM 模块文件: $KPM_MODULE"
+    
+    # 创建初始配置文件（如果不存在）
+    if [ ! -f "$KPM_CONFIG" ]; then
+        log "创建初始 KPM 配置文件"
+        echo "libmyinjector.so" > "$KPM_CONFIG"
+        chmod 644 "$KPM_CONFIG"
+    fi
+    
+    # 等待一段时间确保系统稳定
+    sleep 3
+    
+    # 加载 KPM 模块
+    log "正在加载 KPM 模块..."
+    insmod "$KPM_MODULE" 2>&1 | while read line; do
+        log "insmod: $line"
+    done
+    
+    # 检查模块是否加载成功
+    if lsmod | grep -q "hideInject"; then
+        log "KPM 模块加载成功！"
+    else
+        log "KPM 模块加载失败，请检查日志"
+    fi
+fi
+
 # 脚本完成
 exit 0

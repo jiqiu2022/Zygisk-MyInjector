@@ -70,6 +70,10 @@ afterEvaluate {
             from("$projectDir") {
                 include 'service.sh'
             }
+            // Copy KPM module
+            from("$projectDir/kpm") {
+                include 'injectHide.kpm'
+            }
             // Copy ConfigApp APK if it exists
             def apkFile = file("$rootDir/configapp/build/outputs/apk/debug/configapp-debug.apk")
             if (apkFile.exists()) {
