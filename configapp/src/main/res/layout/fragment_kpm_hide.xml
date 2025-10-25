@@ -106,7 +106,7 @@
                     android:id="@+id/tvConfigPath"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="配置文件: /data/adb/modules/zygisk-myinjector/kpm_hide_config.txt"
+                    android:text="配置文件: /data/local/tmp/kpm_hide_config.txt"
                     android:textSize="10sp"
                     android:textColor="@android:color/darker_gray"
                     android:fontFamily="monospace" />

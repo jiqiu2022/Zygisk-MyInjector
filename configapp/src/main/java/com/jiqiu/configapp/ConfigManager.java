@@ -19,12 +19,13 @@ public class ConfigManager {
     public static final String CONFIG_FILE = MODULE_PATH + "/config.json";
     public static final String SO_STORAGE_DIR = MODULE_PATH + "/so_files";
     public static final String KPM_MODULE_PATH = MODULE_PATH + "/injectHide.kpm";
-    public static final String KPM_HIDE_CONFIG = MODULE_PATH + "/kpm_hide_config.txt";
+    public static final String KPM_HIDE_CONFIG = "/data/local/tmp/kpm_hide_config.txt";
     private static final String KPM_MODULE_NAME = "hideInject";
     
     private final Context context;
     private final Gson gson;
     private ModuleConfig config;
+    private final Object kpmLock = new Object(); // 用于同步 KPM 操作
     
     static {
         // Configure Shell to use root
@@ -725,24 +726,59 @@ public class ConfigManager {
      * 重新加载 KPM 模块
      */
     public boolean reloadKpmModule() {
-        Log.i(TAG, "Reloading KPM module...");
-        
-        // Unload first
-        if (isKpmModuleLoaded()) {
-            if (!unloadKpmModule()) {
-                Log.e(TAG, "Failed to unload module before reload");
-                return false;
+        // 使用锁防止并发重载
+        synchronized (kpmLock) {
+            Log.i(TAG, "Reloading KPM module...");
+            
+            // Unload first
+            if (isKpmModuleLoaded()) {
+                if (!unloadKpmModule()) {
+                    Log.e(TAG, "Failed to unload module before reload");
+                    return false;
+                }
+                
+                // Give kernel more time to cleanup (1 second for safety)
+                // 等待时间足够让内核完全清理资源
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Log.w(TAG, "Sleep interrupted during module reload", e);
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+                
+                // Verify unload was successful
+                int retries = 5;
+                for (int i = 0; i < retries; i++) {
+                    if (!isKpmModuleLoaded()) {
+                        break;
+                    }
+                    Log.w(TAG, "Module still loaded, waiting... (" + (i+1) + "/" + retries + ")");
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                }
+                
+                if (isKpmModuleLoaded()) {
+                    Log.e(TAG, "Module still loaded after unload attempts, aborting reload");
+                    return false;
+                }
             }
-            // Give kernel time to cleanup
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            
+            // Load again
+            boolean success = loadKpmModule();
+            
+            if (success) {
+                Log.i(TAG, "Module reloaded successfully");
+            } else {
+                Log.e(TAG, "Failed to load module after unload");
             }
-        }
-        
-        // Load again
-        return loadKpmModule();
+            
+            return success;
+        } // synchronized
     }
     
     /**
@@ -770,14 +806,17 @@ public class ConfigManager {
             // Ensure module directory exists
             Shell.cmd("mkdir -p \"" + MODULE_PATH + "\"").exec();
             
-            // Copy to module directory with root
+            // Ensure /data/local/tmp exists and is writable
+            Shell.cmd("mkdir -p /data/local/tmp && chmod 777 /data/local/tmp").exec();
+            
+            // Copy to /data/local/tmp with root
             Shell.Result copyResult = Shell.cmd("cp \"" + tempFile + "\" \"" + KPM_HIDE_CONFIG + "\"").exec();
             if (!copyResult.isSuccess()) {
                 Log.e(TAG, "Failed to copy KPM config: " + String.join("\n", copyResult.getErr()));
                 return false;
             }
             
-            Shell.cmd("chmod 644 \"" + KPM_HIDE_CONFIG + "\"").exec();
+            Shell.cmd("chmod 666 \"" + KPM_HIDE_CONFIG + "\"").exec();
             
             // Clean up temp file
             new File(tempFile).delete();

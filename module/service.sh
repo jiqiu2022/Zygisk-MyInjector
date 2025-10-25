@@ -98,7 +98,7 @@ log "ConfigApp 安装脚本执行完成"
 
 # KPM 模块路径
 KPM_MODULE="$MODDIR/injectHide.kpm"
-KPM_CONFIG="$MODDIR/kpm_hide_config.txt"
+KPM_CONFIG="/data/local/tmp/kpm_hide_config.txt"
 
 log "开始加载 KPM 内核模块"
 
@@ -111,8 +111,11 @@ else
     # 创建初始配置文件（如果不存在）
     if [ ! -f "$KPM_CONFIG" ]; then
         log "创建初始 KPM 配置文件"
+        # 确保 /data/local/tmp 目录存在且权限正确
+        mkdir -p /data/local/tmp
+        chmod 777 /data/local/tmp
         echo "libmyinjector.so" > "$KPM_CONFIG"
-        chmod 644 "$KPM_CONFIG"
+        chmod 666 "$KPM_CONFIG"
     fi
     
     # 等待一段时间确保系统稳定
