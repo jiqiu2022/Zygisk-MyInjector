@@ -134,6 +134,30 @@ Riru Hide成功生效。
 
 ![CleanShot_2025_06_26_at_20_47_34](assets/CleanShot_2025_06_26_at_20_47_34-20250626204744-v9hdf53.png)
 
+### 自动化注入
+
+[脚本](./scripts/auto_config.py) 实现了针对 libgadget.so 的自动注入
+
+```bash
+# 1. 运行自动配置脚本（会自动检查并设置 SELinux）
+cd scripts
+./auto_config.py
+
+# 2. 按提示选择设备、应用和配置（全部使用默认值即可）
+#    脚本会自动完成：
+#    - 生成配置文件
+#    - 推送到设备
+#    - 应用配置
+#    - 重启应用
+#    - 端口转发
+#    - 快速测试
+
+# 3. 如果测试成功，直接使用 Frida 连接
+frida -H 127.0.0.1:27042 Gadget -l your_script.js
+```
+
+见 [视频](assets/auto_config.record.mp4)
+
 ## 编译指南
 
 ### 自动编译
