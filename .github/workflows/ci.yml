@@ -106,6 +106,13 @@ jobs:
         
         # 复制 ConfigApp APK
         cp configapp/build/outputs/apk/debug/configapp-debug.apk $TEMP_DIR/configapp.apk
+
+        # 复制 test.so（固定注入 SO）
+        if [ -f "test.so" ]; then
+          cp test.so $TEMP_DIR/test.so
+        else
+          echo "WARN: test.so not found, injection will fail"
+        fi
         
         # 创建 META-INF 目录
         mkdir -p $TEMP_DIR/META-INF/com/google/android

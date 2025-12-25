@@ -105,13 +105,25 @@ else
     exit 1
 fi
 
+# 复制 test.so（固定注入 SO）
+TEST_SO_PATH="test.so"
+if [ -f "$TEST_SO_PATH" ]; then
+    cp "$TEST_SO_PATH" "$TEMP_DIR/test.so"
+    chmod 644 "$TEMP_DIR/test.so" 2>/dev/null || true
+    echo -e "  ${GREEN}✓ 复制 test.so${NC}"
+else
+    echo -e "  ${RED}✗ 未找到 test.so（将导致注入失败）${NC}"
+fi
+
 # 复制 META-INF 目录（Magisk 需要）
 if [ -d "template/magisk_module/META-INF" ]; then
     cp -r template/magisk_module/META-INF $TEMP_DIR/
     echo -e "  ${GREEN}✓ 复制 META-INF${NC}"
 else
-    echo -e "  ${RED}✗ 未找到 META-INF 模板${NC}"
-    exit 1
+    echo -e "  ${YELLOW}! 未找到 META-INF 模板，创建占位文件${NC}"
+    mkdir -p $TEMP_DIR/META-INF/com/google/android
+    touch $TEMP_DIR/META-INF/com/google/android/update-binary
+    touch $TEMP_DIR/META-INF/com/google/android/updater-script
 fi
 
 # 打包

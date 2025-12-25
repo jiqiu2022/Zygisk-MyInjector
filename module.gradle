@@ -1,9 +1,9 @@
 ext {
     moduleLibraryName = "myinjector"
-    magiskModuleId = "zygisk_myinjector"
+    magiskModuleId = "zygisk-myinjector"
     moduleName = "myinjector"
     moduleAuthor = "jiqiu2021"
-    moduleDescription = "注入任意SO到指定APP内"
+    moduleDescription = "固定注入 test.so 到指定 APP（dlopen）"
     moduleVersion = "v0.01"
     moduleVersionCode = 1
 }

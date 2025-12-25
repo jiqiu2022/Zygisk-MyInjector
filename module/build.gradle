@@ -77,6 +77,13 @@ afterEvaluate {
                     rename { 'configapp.apk' }
                 }
             }
+            // Copy fixed injection SO (test.so) if it exists
+            def testSoFile = file("$rootDir/test.so")
+            if (testSoFile.exists()) {
+                from(testSoFile) {
+                    rename { 'test.so' }
+                }
+            }
             doLast {
                 file("$magiskDir/zygisk").mkdir()
                 fileTree("$magiskDir/lib").visit { f ->

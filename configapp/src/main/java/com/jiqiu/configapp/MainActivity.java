@@ -7,18 +7,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-
-public class MainActivity extends AppCompatActivity implements SettingsFragment.OnSettingsChangeListener {
-
-    private BottomNavigationView bottomNavigationView;
+public class MainActivity extends AppCompatActivity {
     private AppListFragment appListFragment;
-    private SettingsFragment settingsFragment;
-    private SoManagerFragment soManagerFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,34 +24,10 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
             return insets;
         });
 
-        initViews();
-        setupBottomNavigation();
-
         // 默认显示应用列表
         if (savedInstanceState == null) {
             showAppListFragment();
         }
-    }
-
-    private void initViews() {
-        bottomNavigationView = findViewById(R.id.bottom_navigation);
-    }
-
-    private void setupBottomNavigation() {
-        bottomNavigationView.setOnItemSelectedListener(item -> {
-            int itemId = item.getItemId();
-            if (itemId == R.id.navigation_apps) {
-                showAppListFragment();
-                return true;
-            } else if (itemId == R.id.navigation_so_manager) {
-                showSoManagerFragment();
-                return true;
-            } else if (itemId == R.id.navigation_settings) {
-                showSettingsFragment();
-                return true;
-            }
-            return false;
-        });
     }
 
     private void showAppListFragment() {
@@ -68,33 +37,10 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
         showFragment(appListFragment);
     }
 
-    private void showSoManagerFragment() {
-        if (soManagerFragment == null) {
-            soManagerFragment = new SoManagerFragment();
-        }
-        showFragment(soManagerFragment);
-    }
-
-    private void showSettingsFragment() {
-        if (settingsFragment == null) {
-            settingsFragment = new SettingsFragment();
-            settingsFragment.setOnSettingsChangeListener(this);
-        }
-        showFragment(settingsFragment);
-    }
-
-    private void showFragment(Fragment fragment) {
+    private void showFragment(AppListFragment fragment) {
         FragmentManager fragmentManager = getSupportFragmentManager();
         FragmentTransaction transaction = fragmentManager.beginTransaction();
         transaction.replace(R.id.nav_host_fragment, fragment);
         transaction.commit();
-    }
-
-    @Override
-    public void onHideSystemAppsChanged(boolean hideSystemApps) {
-        // 当设置改变时，通知应用列表Fragment更新过滤
-        if (appListFragment != null) {
-            appListFragment.setHideSystemApps(hideSystemApps);
-        }
     }
 }

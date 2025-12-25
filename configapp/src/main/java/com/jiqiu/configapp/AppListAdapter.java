@@ -22,14 +22,10 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
     private List<AppInfo> appList;
     private List<AppInfo> filteredAppList;
     private OnAppToggleListener onAppToggleListener;
-    private OnAppClickListener onAppClickListener;
+    private boolean toggleEnabled = true;
     
     public interface OnAppToggleListener {
         void onAppToggle(AppInfo appInfo, boolean isEnabled);
-    }
-    
-    public interface OnAppClickListener {
-        void onAppClick(AppInfo appInfo);
     }
     
     public AppListAdapter() {
@@ -46,20 +42,16 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
     public void setOnAppToggleListener(OnAppToggleListener listener) {
         this.onAppToggleListener = listener;
     }
-    
-    public void setOnAppClickListener(OnAppClickListener listener) {
-        this.onAppClickListener = listener;
+
+    public void setToggleEnabled(boolean enabled) {
+        this.toggleEnabled = enabled;
+        notifyDataSetChanged();
     }
-    
-    public void filterApps(String query, boolean hideSystemApps) {
+
+    public void filterApps(String query) {
         filteredAppList.clear();
         
         for (AppInfo app : appList) {
-            // 过滤系统应用
-            if (hideSystemApps && app.isSystemApp()) {
-                continue;
-            }
-            
             // 搜索过滤
             if (query == null || query.isEmpty() || 
                 app.getAppName().toLowerCase().contains(query.toLowerCase()) ||
@@ -121,19 +113,13 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
             // 设置开关状态
             switchEnable.setOnCheckedChangeListener(null); // 清除之前的监听器
             switchEnable.setChecked(appInfo.isEnabled());
+            switchEnable.setEnabled(toggleEnabled);
             
             // 设置开关监听器
             switchEnable.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 appInfo.setEnabled(isChecked);
                 if (onAppToggleListener != null) {
                     onAppToggleListener.onAppToggle(appInfo, isChecked);
-                }
-            });
-            
-            // 设置整个item的点击监听器
-            itemView.setOnClickListener(v -> {
-                if (onAppClickListener != null) {
-                    onAppClickListener.onAppClick(appInfo);
                 }
             });
         }

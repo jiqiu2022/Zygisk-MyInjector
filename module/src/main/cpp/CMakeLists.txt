@@ -28,23 +28,12 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LINKER_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAGS}")
 
 include_directories(
-        xdl/include
-        mylinker/include
+        .
 )
 
-aux_source_directory(xdl xdl-src)
-
-# Build mylinker as a subdirectory
-add_subdirectory(mylinker)
-
 add_library(${MODULE_NAME} SHARED
-        main.cpp
-        hack_new.cpp
-        config.cpp
-        newriruhide.cpp
-        pmparser.cpp
-        ${xdl-src})
-target_link_libraries(${MODULE_NAME} log mylinker)
+        main.cpp)
+target_link_libraries(${MODULE_NAME} log)
 
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_custom_command(TARGET ${MODULE_NAME} POST_BUILD
