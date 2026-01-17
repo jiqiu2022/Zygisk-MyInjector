@@ -1,5 +1,7 @@
 package com.jiqiu.configapp;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
@@ -37,6 +39,9 @@ import java.util.List;
  */
 public class AppListFragment extends Fragment implements AppListAdapter.OnAppToggleListener, AppListAdapter.OnAppClickListener {
     
+    private static final String PREFS_NAME = "MyInjectorSettings";
+    private static final String KEY_HIDE_SYSTEM_APPS = "hide_system_apps";
+    
     private RecyclerView recyclerView;
     private AppListAdapter adapter;
     private TextInputEditText searchEditText;
@@ -45,6 +50,7 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
     private List<AppInfo> allApps;
     private boolean hideSystemApps = false;
     private ConfigManager configManager;
+    private SharedPreferences sharedPreferences;
     
     @Nullable
     @Override
@@ -61,16 +67,53 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         // Ensure module directories exist
         configManager.ensureModuleDirectories();
         
+        // 初始化SharedPreferences并读取保存的过滤设置
+        sharedPreferences = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        hideSystemApps = sharedPreferences.getBoolean(KEY_HIDE_SYSTEM_APPS, false);
+        
+        // Setup Fragment Result Listener for GadgetConfigDialog
+        setupGadgetConfigResultListener();
+        
         initViews(view);
         setupRecyclerView();
         setupSearchView();
         loadApps();
     }
     
+    private void setupGadgetConfigResultListener() {
+        getParentFragmentManager().setFragmentResultListener(
+            GadgetConfigDialog.REQUEST_KEY,
+            getViewLifecycleOwner(),
+            (requestKey, result) -> {
+                String packageName = result.getString("packageName");
+                if (packageName != null) {
+                    // Extract config from bundle
+                    ConfigManager.GadgetConfig config = new ConfigManager.GadgetConfig();
+                    config.mode = result.getString("mode", "script");
+                    config.address = result.getString("address", "0.0.0.0");
+                    config.port = result.getInt("port", 27042);
+                    config.onPortConflict = result.getString("onPortConflict", "fail");
+                    config.onLoad = result.getString("onLoad", "wait");
+                    config.scriptPath = result.getString("scriptPath", "/data/local/tmp/script.js");
+                    config.gadgetName = result.getString("gadgetName", "libgadget.so");
+                    
+                    configManager.setAppUseGlobalGadget(packageName, false);
+                    configManager.setAppGadgetConfig(packageName, config);
+                }
+            }
+        );
+    }
+    
     private void initViews(View view) {
         recyclerView = view.findViewById(R.id.recycler_view_apps);
         searchEditText = view.findViewById(R.id.search_edit_text);
         progressBar = view.findViewById(R.id.progress_bar);
+        
+        // 设置根布局点击监听，点击时清除搜索框焦点
+        View rootLayout = view.findViewById(R.id.root_layout);
+        if (rootLayout != null) {
+            rootLayout.setOnClickListener(v -> clearSearchFocus());
+        }
     }
     
     private void setupRecyclerView() {
@@ -79,6 +122,17 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         adapter.setOnAppClickListener(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
+        
+        // 添加滚动监听，滚动时清除搜索框焦点
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    clearSearchFocus();
+                }
+            }
+        });
     }
     
     private void setupSearchView() {
@@ -114,12 +168,33 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
         filterApps(searchEditText.getText().toString());
     }
     
+    /**
+     * 清除搜索框焦点并隐藏键盘
+     */
+    private void clearSearchFocus() {
+        if (searchEditText != null && searchEditText.hasFocus()) {
+            searchEditText.clearFocus();
+            // 隐藏软键盘
+            android.view.inputmethod.InputMethodManager imm = 
+                (android.view.inputmethod.InputMethodManager) requireContext()
+                    .getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
+            }
+        }
+    }
+    
     @Override
     public void onAppToggle(AppInfo appInfo, boolean isEnabled) {
         // 保存应用的启用状态到配置文件
         configManager.setAppEnabled(appInfo.getPackageName(), isEnabled);
         android.util.Log.d("AppListFragment", 
             "App " + appInfo.getAppName() + " toggle: " + isEnabled);
+        
+        // 重新排序列表，让已启用的应用显示在最上面
+        if (adapter != null) {
+            adapter.refreshSort();
+        }
     }
     
     @Override
@@ -217,16 +292,18 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
                 currentConfig = new ConfigManager.GadgetConfig();
             }
             
-            GadgetConfigDialog dialog = new GadgetConfigDialog(
-                getContext(),
-                "配置" + appInfo.getAppName() + "的Gadget",
-                currentConfig,
-                config -> {
-                    configManager.setAppUseGlobalGadget(appInfo.getPackageName(), false);
-                    configManager.setAppGadgetConfig(appInfo.getPackageName(), config);
-                }
-            );
-            dialog.show();
+            GadgetConfigDialog dialog = GadgetConfigDialog.newInstance(currentConfig);
+            dialog.setCustomTitle("配置" + appInfo.getAppName() + "的Gadget");
+            
+            // Store package name for result callback
+            Bundle args = dialog.getArguments();
+            if (args == null) {
+                args = new Bundle();
+            }
+            args.putString("packageName", appInfo.getPackageName());
+            dialog.setArguments(args);
+            
+            dialog.show(getParentFragmentManager(), "GadgetConfigDialog");
         });
         
         // Setup SO list
@@ -374,15 +451,24 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
                     String packageName = appInfo.packageName;
                     boolean isSystemApp = (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
                     
+                    // 不在这里加载图标，留给ViewHolder延迟加载
                     AppInfo app = new AppInfo(
                         appName,
                         packageName,
-                        pm.getApplicationIcon(appInfo),
+                        null,  // 图标稍后加载
                         isSystemApp
                     );
                     
                     // 从配置中加载启用状态
                     app.setEnabled(configManager.isAppEnabled(packageName));
+                    
+                    // 获取应用最后更新时间（而不是首次安装旴间）
+                    try {
+                        long updateTime = pm.getPackageInfo(packageName, 0).lastUpdateTime;
+                        app.setInstallTime(updateTime);
+                    } catch (Exception e) {
+                        app.setInstallTime(0);
+                    }
                     
                     apps.add(app);
                 } catch (Exception e) {
@@ -391,11 +477,16 @@ public class AppListFragment extends Fragment implements AppListAdapter.OnAppTog
                 }
             }
             
-            // 按应用名称排序
+            // 按启用状态和更新时间排序：已启用的应用在前面，最近更新的排在前面
             Collections.sort(apps, new Comparator<AppInfo>() {
                 @Override
-                public int compare(AppInfo o1, AppInfo o2) {
-                    return o1.getAppName().compareToIgnoreCase(o2.getAppName());
+                public int compare(AppInfo app1, AppInfo app2) {
+                    // 首先按启用状态排序（已启用的在前）
+                    if (app1.isEnabled() != app2.isEnabled()) {
+                        return app1.isEnabled() ? -1 : 1;
+                    }
+                    // 然后按更新时间排序（最近更新的在前，即降序）
+                    return Long.compare(app2.getInstallTime(), app1.getInstallTime());
                 }
             });
             

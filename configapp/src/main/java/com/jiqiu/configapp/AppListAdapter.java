@@ -12,6 +12,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -68,6 +70,34 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
             }
         }
         
+        // 排序：已启用的应用在前面，然后按名称排序
+        sortAppList();
+        
+        notifyDataSetChanged();
+    }
+    
+    /**
+     * 排序应用列表：已启用的应用显示在最前面，然后按更新时间排序
+     */
+    private void sortAppList() {
+        Collections.sort(filteredAppList, new Comparator<AppInfo>() {
+            @Override
+            public int compare(AppInfo app1, AppInfo app2) {
+                // 首先按启用状态排序（已启用的在前）
+                if (app1.isEnabled() != app2.isEnabled()) {
+                    return app1.isEnabled() ? -1 : 1;
+                }
+                // 然后按更新时间排序（最近更新的在前，即降序）
+                return Long.compare(app2.getInstallTime(), app1.getInstallTime());
+            }
+        });
+    }
+    
+    /**
+     * 重新排序并刷新列表（用于开关切换后）
+     */
+    public void refreshSort() {
+        sortAppList();
         notifyDataSetChanged();
     }
     
@@ -107,7 +137,42 @@ public class AppListAdapter extends RecyclerView.Adapter<AppListAdapter.AppViewH
         }
         
         public void bind(AppInfo appInfo) {
-            appIcon.setImageDrawable(appInfo.getAppIcon());
+            // 使用 tag 标记当前绑定的包名，防止回收的 ViewHolder 显示错误图标
+            appIcon.setTag(appInfo.getPackageName());
+            
+            // 延迟加载图标
+            if (appInfo.getAppIcon() == null && !appInfo.isIconLoaded()) {
+                // 设置默认图标
+                appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+                appInfo.setIconLoaded(true);
+                
+                // 保存当前包名用于后续验证
+                final String currentPackageName = appInfo.getPackageName();
+                
+                // 异步加载真实图标
+                new Thread(() -> {
+                    try {
+                        android.content.pm.PackageManager pm = itemView.getContext().getPackageManager();
+                        android.graphics.drawable.Drawable icon = pm.getApplicationIcon(currentPackageName);
+                        appInfo.setAppIcon(icon);
+                        
+                        // 在主线程更新UI，但要检查 ViewHolder 是否仍然绑定到同一个应用
+                        itemView.post(() -> {
+                            // 验证 ViewHolder 是否仍然绑定到同一个包名
+                            if (currentPackageName.equals(appIcon.getTag())) {
+                                appIcon.setImageDrawable(icon);
+                            }
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
+            } else if (appInfo.getAppIcon() != null) {
+                appIcon.setImageDrawable(appInfo.getAppIcon());
+            } else {
+                appIcon.setImageResource(android.R.drawable.sym_def_app_icon);
+            }
+            
             appName.setText(appInfo.getAppName());
             packageName.setText(appInfo.getPackageName());
             

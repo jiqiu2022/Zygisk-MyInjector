@@ -37,6 +37,8 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
         // 默认显示应用列表
         if (savedInstanceState == null) {
             showAppListFragment();
+            // 应用保存的过滤设置
+            restoreFilterSettings();
         }
     }
 
@@ -96,5 +98,15 @@ public class MainActivity extends AppCompatActivity implements SettingsFragment.
         if (appListFragment != null) {
             appListFragment.setHideSystemApps(hideSystemApps);
         }
+    }
+    
+    private void restoreFilterSettings() {
+        // 延迟应用过滤设置，确保Fragment已经初始化完成
+        findViewById(R.id.main).post(() -> {
+            if (settingsFragment != null && appListFragment != null) {
+                boolean hideSystemApps = settingsFragment.isHideSystemApps();
+                appListFragment.setHideSystemApps(hideSystemApps);
+            }
+        });
     }
 }

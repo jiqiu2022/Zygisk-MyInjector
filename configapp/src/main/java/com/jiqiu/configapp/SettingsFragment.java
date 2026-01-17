@@ -32,6 +32,7 @@ public class SettingsFragment extends Fragment {
     private EditText editInjectionDelay;
     private TextView tvGlobalGadgetStatus;
     private Button btnConfigureGlobalGadget;
+    private Button btnResetGlobalGadget;
     private ConfigManager configManager;
     
     private SharedPreferences sharedPreferences;
@@ -52,10 +53,39 @@ public class SettingsFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         
+        // Setup Fragment Result Listener for GadgetConfigDialog
+        setupGadgetConfigResultListener();
+        
         initViews(view);
         initSharedPreferences();
+        // 先加载设置，再设置监听器，避免触发动画
         loadSettings();
         setupListeners();
+    }
+    
+    private void setupGadgetConfigResultListener() {
+        getParentFragmentManager().setFragmentResultListener(
+            GadgetConfigDialog.REQUEST_KEY,
+            getViewLifecycleOwner(),
+            (requestKey, result) -> {
+                boolean isGlobalConfig = result.getBoolean("isGlobalConfig", false);
+                if (isGlobalConfig) {
+                    // Extract config from bundle
+                    ConfigManager.GadgetConfig config = new ConfigManager.GadgetConfig();
+                    config.mode = result.getString("mode", "script");
+                    config.address = result.getString("address", "0.0.0.0");
+                    config.port = result.getInt("port", 27042);
+                    config.onPortConflict = result.getString("onPortConflict", "fail");
+                    config.onLoad = result.getString("onLoad", "wait");
+                    config.scriptPath = result.getString("scriptPath", "/data/local/tmp/script.js");
+                    config.gadgetName = result.getString("gadgetName", "libgadget.so");
+                    
+                    // Save global gadget configuration
+                    configManager.setGlobalGadgetConfig(config);
+                    updateGlobalGadgetStatus();
+                }
+            }
+        );
     }
     
     private void initViews(View view) {
@@ -65,6 +95,7 @@ public class SettingsFragment extends Fragment {
         editInjectionDelay = view.findViewById(R.id.editInjectionDelay);
         tvGlobalGadgetStatus = view.findViewById(R.id.tvGlobalGadgetStatus);
         btnConfigureGlobalGadget = view.findViewById(R.id.btnConfigureGlobalGadget);
+        btnResetGlobalGadget = view.findViewById(R.id.btnResetGlobalGadget);
         
         configManager = new ConfigManager(getContext());
     }
@@ -76,10 +107,23 @@ public class SettingsFragment extends Fragment {
     private void loadSettings() {
         boolean hideSystemApps = sharedPreferences.getBoolean(KEY_HIDE_SYSTEM_APPS, false);
         
-        if (hideSystemApps) {
-            radioHideSystem.setChecked(true);
-        } else {
-            radioShowAll.setChecked(true);
+        // 检查是否需要改变状态，避免不必要的动画
+        boolean needsChange = hideSystemApps != radioHideSystem.isChecked();
+        
+        if (needsChange) {
+            // 临时禁用动画
+            radioGroupFilter.jumpDrawablesToCurrentState();
+            
+            if (hideSystemApps) {
+                radioHideSystem.setChecked(true);
+            } else {
+                radioShowAll.setChecked(true);
+            }
+            
+            // 立即跳过动画到最终状态
+            radioGroupFilter.jumpDrawablesToCurrentState();
+            radioShowAll.jumpDrawablesToCurrentState();
+            radioHideSystem.jumpDrawablesToCurrentState();
         }
         
         // Load injection delay
@@ -138,6 +182,16 @@ public class SettingsFragment extends Fragment {
         btnConfigureGlobalGadget.setOnClickListener(v -> {
             showGlobalGadgetConfigDialog();
         });
+        
+        // Reset global gadget to default button
+        btnResetGlobalGadget.setOnClickListener(v -> {
+            configManager.resetGlobalGadgetConfigToDefault();
+            updateGlobalGadgetStatus();
+            // Show confirmation message
+            if (getContext() != null) {
+                android.widget.Toast.makeText(getContext(), "全局Gadget配置已重置为默认值", android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
     }
     
     public void setOnSettingsChangeListener(OnSettingsChangeListener listener) {
@@ -165,16 +219,17 @@ public class SettingsFragment extends Fragment {
     
     private void showGlobalGadgetConfigDialog() {
         // Use existing GadgetConfigDialog
-        GadgetConfigDialog dialog = new GadgetConfigDialog(
-            getContext(),
-            "全局Gadget配置",
-            configManager.getGlobalGadgetConfig(),
-            gadgetConfig -> {
-                // Save global gadget configuration
-                configManager.setGlobalGadgetConfig(gadgetConfig);
-                updateGlobalGadgetStatus();
-            }
-        );
-        dialog.show();
+        GadgetConfigDialog dialog = GadgetConfigDialog.newInstance(configManager.getGlobalGadgetConfig());
+        dialog.setCustomTitle("全局Gadget配置");
+        
+        // Mark this as global config for result callback
+        Bundle args = dialog.getArguments();
+        if (args == null) {
+            args = new Bundle();
+        }
+        args.putBoolean("isGlobalConfig", true);
+        dialog.setArguments(args);
+        
+        dialog.show(getParentFragmentManager(), "GlobalGadgetConfigDialog");
     }
 }

@@ -32,6 +32,20 @@ import org.json.JSONObject;
 
 public class GadgetConfigDialog extends DialogFragment {
     
+    // Bundle keys
+    private static final String ARG_MODE = "mode";
+    private static final String ARG_ADDRESS = "address";
+    private static final String ARG_PORT = "port";
+    private static final String ARG_ON_PORT_CONFLICT = "onPortConflict";
+    private static final String ARG_ON_LOAD = "onLoad";
+    private static final String ARG_SCRIPT_PATH = "scriptPath";
+    private static final String ARG_GADGET_NAME = "gadgetName";
+    private static final String ARG_CUSTOM_TITLE = "customTitle";
+    
+    // Result key for Fragment Result API
+    public static final String REQUEST_KEY = "gadget_config_result";
+    public static final String RESULT_CONFIG = "config";
+    
     // UI elements
     private RadioGroup modeRadioGroup;
     private RadioButton radioModeServer;
@@ -72,7 +86,20 @@ public class GadgetConfigDialog extends DialogFragment {
     
     public static GadgetConfigDialog newInstance(ConfigManager.GadgetConfig config) {
         GadgetConfigDialog dialog = new GadgetConfigDialog();
-        dialog.config = config != null ? config : new ConfigManager.GadgetConfig();
+        Bundle args = new Bundle();
+        
+        // Save config to bundle
+        if (config != null) {
+            args.putString(ARG_MODE, config.mode);
+            args.putString(ARG_ADDRESS, config.address);
+            args.putInt(ARG_PORT, config.port);
+            args.putString(ARG_ON_PORT_CONFLICT, config.onPortConflict);
+            args.putString(ARG_ON_LOAD, config.onLoad);
+            args.putString(ARG_SCRIPT_PATH, config.scriptPath);
+            args.putString(ARG_GADGET_NAME, config.gadgetName);
+        }
+        
+        dialog.setArguments(args);
         return dialog;
     }
     
@@ -95,9 +122,37 @@ public class GadgetConfigDialog extends DialogFragment {
         this.listener = listener;
     }
     
+    public void setCustomTitle(String title) {
+        this.customTitle = title;
+        // Also save to arguments for state restoration
+        Bundle args = getArguments();
+        if (args == null) {
+            args = new Bundle();
+            setArguments(args);
+        }
+        args.putString(ARG_CUSTOM_TITLE, title);
+    }
+    
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // Restore config from arguments
+        if (config == null) {
+            config = new ConfigManager.GadgetConfig();
+        }
+        
+        Bundle args = getArguments();
+        if (args != null) {
+            config.mode = args.getString(ARG_MODE, "script");
+            config.address = args.getString(ARG_ADDRESS, "0.0.0.0");
+            config.port = args.getInt(ARG_PORT, 27042);
+            config.onPortConflict = args.getString(ARG_ON_PORT_CONFLICT, "fail");
+            config.onLoad = args.getString(ARG_ON_LOAD, "wait");
+            config.scriptPath = args.getString(ARG_SCRIPT_PATH, "/data/local/tmp/script.js");
+            config.gadgetName = args.getString(ARG_GADGET_NAME, "libgadget.so");
+            customTitle = args.getString(ARG_CUSTOM_TITLE);
+        }
         
         // Initialize file browser launcher
         fileBrowserLauncher = registerForActivityResult(
@@ -477,11 +532,36 @@ public class GadgetConfigDialog extends DialogFragment {
     }
     
     private void saveConfig() {
-        if (listener != null) {
-            // Ensure gadget name is not empty
-            if (config.gadgetName == null || config.gadgetName.trim().isEmpty()) {
-                config.gadgetName = "libgadget.so";
+        // Ensure gadget name is not empty
+        if (config.gadgetName == null || config.gadgetName.trim().isEmpty()) {
+            config.gadgetName = "libgadget.so";
+        }
+        
+        // Send result via Fragment Result API
+        Bundle result = new Bundle();
+        result.putString("mode", config.mode);
+        result.putString("address", config.address);
+        result.putInt("port", config.port);
+        result.putString("onPortConflict", config.onPortConflict);
+        result.putString("onLoad", config.onLoad);
+        result.putString("scriptPath", config.scriptPath);
+        result.putString("gadgetName", config.gadgetName);
+        
+        // Pass through any additional data from arguments
+        Bundle args = getArguments();
+        if (args != null) {
+            if (args.containsKey("packageName")) {
+                result.putString("packageName", args.getString("packageName"));
             }
+            if (args.containsKey("isGlobalConfig")) {
+                result.putBoolean("isGlobalConfig", args.getBoolean("isGlobalConfig"));
+            }
+        }
+        
+        getParentFragmentManager().setFragmentResult(REQUEST_KEY, result);
+        
+        // Also call legacy listener if set (for backward compatibility)
+        if (listener != null) {
             listener.onGadgetConfigSaved(config);
         }
     }

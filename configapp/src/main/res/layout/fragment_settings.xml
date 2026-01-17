@@ -186,6 +186,13 @@
                     android:text="配置全局Gadget"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnResetGlobalGadget"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="重置为默认配置"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
